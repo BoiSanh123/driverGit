@@ -12,17 +12,55 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
+    
+    "plugins": [
+      "expo-location",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
+    ],
+    
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "App cần truy cập vị trí để hiển thị bản đồ và theo dõi lộ trình giao hàng",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "App cần truy cập vị trí nền để cập nhật trạng thái giao hàng",
+        "UIBackgroundModes": ["location", "fetch"],
+        "NSCameraUsageDescription": "Cần quyền truy cập camera để chụp ảnh xác nhận giao hàng"
+       
+      },
+      "bundleIdentifier": "com.yourcompany.customerproject" 
     },
+    
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA",
+"WRITE_EXTERNAL_STORAGE",
+"READ_EXTERNAL_STORAGE"
+      ],
+      "package": "com.yourcompany.customerproject"
     },
+    
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      }
     }
   }
 }

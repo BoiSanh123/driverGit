@@ -1,20 +1,72 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+import WarehouseDashboard from './src/screens/warehouse/WarehouseDashboard';
+import WarehouseOrderScreen from './src/screens/warehouse/WarehouseOrderScreen';
+import WarehouseProcessingScreen from './src/screens/warehouse/WarehouseProcessingScreen';
+import WarehouseScreen from './src/screens/warehouse/WarehouseScreen';
+// import WarehouseOrderDetail from './src/screens/warehouse/WarehouseOrderDetail';
+import WarehouseReturnedOrders from './src/screens/warehouse/WarehouseReturnedOrders';
+import DriverAssignmentScreen from './src/screens/warehouse/DriverAssignmentScreen';
+import DriverAssignedOrders from './src/screens/warehouse/DriverAssignedOrders';
+import DriverDashboardScreen from './src/screens/driver/DriverDashboardScreen';
+import DeliveryOrdersScreen from './src/screens/driver/DeliveryOrdersScreen';
+import PickupOrdersScreen from './src/screens/driver/PickupOrdersScreen';
+import DeliveryDetailScreen from './src/screens/driver/DeliveryDetailScreen';
+import ActiveOrderScreen from './src/screens/driver/ActiveOrderScreen';
+import OrderHistoryScreen from './src/screens/driver/OrderHistoryScreen';
+
+const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="DriverDashboardScreen">
+        <Stack.Screen name="WarehouseDashboard" component={WarehouseDashboard} initialParams={{ StaffID: 21 }} options={{ title: 'Trang chủ' }} />
+        <Stack.Screen name="WarehouseOrderScreen" component={WarehouseOrderScreen} initialParams={{ StaffID: 21 }} options={{ title: 'Đơn chờ xử lý 1' }} />
+        <Stack.Screen name="WarehouseProcessingScreen" component={WarehouseProcessingScreen} initialParams={{ StaffID: 21 }} options={{ title: 'Đơn chờ xử lý 2' }} />
+        <Stack.Screen name="WarehouseScreen" component={WarehouseScreen} initialParams={{ StaffID: 21 }} options={{ title: 'Nhà kho' }} />
+
+        <Stack.Screen name="DriverAssignmentScreen" component={DriverAssignmentScreen} initialParams={{ StaffID: 21 }} options={{ title: 'Danh sách tài xế' }} />
+        <Stack.Screen name="DriverAssignedOrders" component={DriverAssignedOrders} initialParams={{ StaffID: 21 }} options={{ title: 'Danh sách đơn phân bố' }} />
+        
+        <Stack.Screen name="DeliveryOrdersScreen" component={DeliveryOrdersScreen} initialParams={{ StaffID: 22 }} options={{ title: 'Đơn hàng cần giao' }} />
+        <Stack.Screen
+          name="DriverDashboardScreen"
+          component={DriverDashboardScreen}
+          initialParams={{ StaffID: 22 }} 
+        />
+        <Stack.Screen
+          name="DeliveryDetailScreen"
+          component={DeliveryDetailScreen}
+          initialParams={{ StaffID: 22 }}
+          options={{ title: 'Đơn hàng đang giao' }}
+        />
+        <Stack.Screen
+          name="ActiveOrderScreen"
+          component={ActiveOrderScreen}
+          initialParams={{ StaffID: 22 }} 
+          options={{ title: 'Đơn hàng đang giao' }}
+        />
+        <Stack.Screen
+          name="OrderHistoryScreen"
+          component={OrderHistoryScreen}
+          initialParams={{ StaffID: 22 }}
+          options={{ title: 'Lịch sử đơn' }}
+        />
+        <Stack.Screen
+          name="PickupOrdersScreen"
+          component={PickupOrdersScreen}
+          initialParams={{ StaffID: 22 }}
+          options={{ title: 'Đơn cần lấy' }}
+        />
+
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+/*
+
+*/
