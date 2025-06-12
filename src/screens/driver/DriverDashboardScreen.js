@@ -1,35 +1,59 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import axios from 'axios';
+import API_URL from '../../config/apiconfig';
 
 export default function DriverDashboardScreen({ route }) {
   const navigation = useNavigation();
-  const { driverId } = route.params;
+  const { StaffID } = route.params;
+  const [staffInfo, setStaffInfo] = useState(null);
+
+  useEffect(() => {
+    const fetchStaffInfo = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/staff/${StaffID}`);
+        setStaffInfo(response.data);
+      } catch (err) {
+        console.error('Lỗi lấy thông tin nhân viên:', err);
+      }
+    };
+
+    fetchStaffInfo();
+  }, []);
 
   const handlePickupPress = () => {
-    navigation.navigate('PickupOrdersScreen', { driverId });
+    navigation.navigate('PickupOrdersScreen', { StaffID });
   };
 
   const handleDeliveryPress = () => {
-    navigation.navigate('DeliveryOrdersScreen', { driverId });
+    navigation.navigate('DeliveryOrdersScreen', { StaffID });
   };
 
   const handleActiveOrdersPress = () => {
-    navigation.navigate('ActiveOrderScreen', { driverId });
+    navigation.navigate('ActiveOrderScreen', { StaffID });
   };
 
   const handleOrderHistoryPress = () => {
-    navigation.navigate('OrderHistoryScreen', { driverId });
+    navigation.navigate('OrderHistoryScreen', { StaffID });
   };
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.orangeBox}>
+        <View style={styles.headerRow}>
           <Image
             source={require('../../../assets/img/avatars/5.png')}
             style={styles.avatar}
           />
+          <View style={styles.nameSection}>
+            <Text style={styles.staffName}>
+              {staffInfo?.Name || 'Tên nhân viên'}
+            </Text>
+            <Text style={styles.staffPosition}>
+              {staffInfo?.Position || 'Chức vụ'}
+            </Text>
+          </View>
           <TouchableOpacity style={styles.logoutButton}>
             <Text style={styles.logoutText}>Đăng xuất</Text>
           </TouchableOpacity>
@@ -37,7 +61,6 @@ export default function DriverDashboardScreen({ route }) {
       </View>
 
       <View style={styles.menuContainer}>
-        {/* Khung Lấy hàng */}
         <TouchableOpacity style={styles.menuItem} onPress={handlePickupPress}>
           <View style={styles.iconCircle}>
             <Image 
@@ -48,7 +71,6 @@ export default function DriverDashboardScreen({ route }) {
           <Text style={styles.menuText}>Lấy hàng</Text>
         </TouchableOpacity>
 
-        {/* Khung Giao hàng */}
         <TouchableOpacity style={styles.menuItem} onPress={handleDeliveryPress}>
           <View style={styles.iconCircle}>
             <Image 
@@ -59,7 +81,6 @@ export default function DriverDashboardScreen({ route }) {
           <Text style={styles.menuText}>Giao hàng</Text>
         </TouchableOpacity>
 
-        {/* Khung Đang giao */}
         <TouchableOpacity style={styles.menuItem} onPress={handleActiveOrdersPress}>
           <View style={styles.iconCircle}>
             <Image 
@@ -70,7 +91,6 @@ export default function DriverDashboardScreen({ route }) {
           <Text style={styles.menuText}>Đang giao</Text>
         </TouchableOpacity>
 
-        {/* Khung lịch sử */}
         <TouchableOpacity style={styles.menuItem} onPress={handleOrderHistoryPress}>
           <View style={styles.iconCircle}>
             <Image 
@@ -86,10 +106,7 @@ export default function DriverDashboardScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
   header: {
     backgroundColor: '#FFD54F',
     paddingTop: 40,
@@ -99,24 +116,39 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 30,
     marginBottom: 30,
   },
-  orangeBox: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between'
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 8,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  nameSection: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  staffName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  staffPosition: {
+    fontSize: 13,
+    color: '#fff',
   },
   logoutButton: {
     paddingVertical: 4,
+    paddingHorizontal: 10,
+    backgroundColor: '#fff',
+    borderRadius: 5,
   },
   logoutText: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '600',
+    fontSize: 14,
+    color: '#FFD54F',
+    fontWeight: 'bold',
   },
   menuContainer: {
     flexDirection: 'row',

@@ -29,9 +29,8 @@ export default function App() {
         <Stack.Screen name="WarehouseScreen" component={WarehouseScreen} initialParams={{ StaffID: 21 }} options={{ title: 'Nhà kho' }} />
 
         <Stack.Screen name="DriverAssignmentScreen" component={DriverAssignmentScreen} initialParams={{ StaffID: 21 }} options={{ title: 'Danh sách tài xế' }} />
-        <Stack.Screen name="DriverAssignedOrders" component={DriverAssignedOrders} initialParams={{ StaffID: 21 }} options={{ title: 'Danh sách đơn phân bố' }} />
-        
-        <Stack.Screen name="DeliveryOrdersScreen" component={DeliveryOrdersScreen} initialParams={{ StaffID: 22 }} options={{ title: 'Đơn hàng cần giao' }} />
+        <Stack.Screen name="DriverAssignedOrders" component={DriverAssignedOrders} initialParams={{ StaffID: 21 }} options={{ title: 'Danh sách đơn phân bố' }} />        
+        <Stack.Screen name="DeliveryOrdersScreen" component={DeliveryOrdersScreen} options={{ title: 'Đơn hàng cần giao' }} />
         <Stack.Screen
           name="DriverDashboardScreen"
           component={DriverDashboardScreen}
@@ -40,25 +39,21 @@ export default function App() {
         <Stack.Screen
           name="DeliveryDetailScreen"
           component={DeliveryDetailScreen}
-          initialParams={{ StaffID: 22 }}
           options={{ title: 'Đơn hàng đang giao' }}
         />
         <Stack.Screen
           name="ActiveOrderScreen"
           component={ActiveOrderScreen}
-          initialParams={{ StaffID: 22 }} 
           options={{ title: 'Đơn hàng đang giao' }}
         />
         <Stack.Screen
           name="OrderHistoryScreen"
           component={OrderHistoryScreen}
-          initialParams={{ StaffID: 22 }}
           options={{ title: 'Lịch sử đơn' }}
         />
         <Stack.Screen
           name="PickupOrdersScreen"
           component={PickupOrdersScreen}
-          initialParams={{ StaffID: 22 }}
           options={{ title: 'Đơn cần lấy' }}
         />
 

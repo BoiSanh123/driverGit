@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -13,8 +12,8 @@ import API_URL from '../../config/apiconfig';
 
 const OrderHistoryScreen = ({ route }) => {
   const { StaffID } = route.params;
-  const [currentMonthOrders, setCurrentMonthOrders] = useState([]);
-  const [previousMonthOrders, setPreviousMonthOrders] = useState([]);
+  const [thisMonthOrders, setThisMonthOrders] = useState([]);
+  const [lastMonthOrders, setLastMonthOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
 
@@ -22,46 +21,35 @@ const OrderHistoryScreen = ({ route }) => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/drivers/${StaffID}/assigned-orders`);
-      const rawData = response.data;
-
-      const filteredOrders = rawData.filter(order =>
-        order.Order_status === 'Hoàn thành' || order.Order_status === 'Thất bại'
-      );
-      // Giữ bản ghi mới nhất nếu trùng OrderID
-      const uniqueOrders = Object.values(
-        filteredOrders.reduce((acc, item) => {
-          const existing = acc[item.OrderID];
-          if (!existing || new Date(item.assigned_at) > new Date(existing.assigned_at)) {
-            acc[item.OrderID] = item;
-          }
-          return acc;
-        }, {})
-      );
 
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
 
-      const current = [];
-      const previous = [];
+      const filtered = response.data.filter(order =>
+        order.Order_status === 'Hoàn thành' || order.Order_status === 'Thất bại'
+      );
 
-      uniqueOrders.forEach(order => {
-        const date = new Date(order.assigned_at);
-        const month = date.getMonth();
-        const year = date.getFullYear();
+      const thisMonth = [];
+      const lastMonth = [];
 
-        if (month === currentMonth && year === currentYear) {
-          current.push(order);
+      filtered.forEach(order => {
+        const updated = new Date(order.Updated_at);
+        const m = updated.getMonth();
+        const y = updated.getFullYear();
+
+        if (m === currentMonth && y === currentYear) {
+          thisMonth.push(order);
         } else if (
-          (month === currentMonth - 1 && year === currentYear) ||
-          (currentMonth === 0 && month === 11 && year === currentYear - 1)
+          (m === currentMonth - 1 && y === currentYear) ||
+          (currentMonth === 0 && m === 11 && y === currentYear - 1)
         ) {
-          previous.push(order);
+          lastMonth.push(order);
         }
       });
 
-      setCurrentMonthOrders(current);
-      setPreviousMonthOrders(previous);
+      setThisMonthOrders(thisMonth);
+      setLastMonthOrders(lastMonth);
     } catch (err) {
       console.error('❌ Lỗi khi lấy đơn hàng:', err);
     } finally {
@@ -73,84 +61,77 @@ const OrderHistoryScreen = ({ route }) => {
     fetchHistoryOrders();
   }, []);
 
-  const countOrdersByStatus = (orders) => {
-    return orders.reduce((acc, order) => {
-      if (order.Order_status === 'Hoàn thành') {
-        acc.completed++;
-      } else if (order.Order_status === 'Thất bại') {
-        acc.failed++;
-      }
-      return acc;
-    }, { completed: 0, failed: 0 });
-  };
-
-  const renderOrderItem = (order) => (
+  const renderOrderItem = (order, index) => (
     <View
-      key={order.OrderID}
+      key={`${order.OrderID}-${index}`}
       style={[
         styles.orderCard,
         order.Order_status === 'Thất bại' && styles.failedCard
       ]}
     >
-      <Text style={styles.orderCode}>📦 Mã đơn: {order.Order_code || order.order_code}</Text>
-      <Text style={styles.info}>👤 Người nhận: {order.Receiver_name || order.receiver_name}</Text>
-      <Text style={styles.info}>📍 Địa chỉ: {order.Receiver_address || order.receiver_address}</Text>
-      <Text style={styles.info}>📞 SĐT: {order.Receiver_phone || order.receiver_phone}</Text>
+      <Text style={styles.orderCode}>📦 Mã đơn: {order.Order_code}</Text>
+      <Text style={styles.info}>👤 Người nhận: {order.Receiver_name}</Text>
+      <Text style={styles.info}>📍 Địa chỉ: {order.Receiver_address}</Text>
+      <Text style={styles.info}>📞 SĐT: {order.Receiver_phone}</Text>
       <Text style={[
         styles.statusText,
-        order.Order_status === 'Thất bại' && { color: '#E53935' },
-        order.Order_status === 'Hoàn thành' && { color: '#7CB342' }
+        order.Order_status === 'Thất bại' ? { color: '#E53935' } : { color: '#4CAF50' }
       ]}>
-        📝 Trạng thái: {order.Order_status}
+        Trạng thái: {order.Order_status}
+        {order.Order_status === 'Thất bại' && order.notes && ` (${order.notes})`}
       </Text>
     </View>
   );
 
-  const renderTabContent = () => {
-    const data = activeTab === 0 ? currentMonthOrders : previousMonthOrders;
-    const counts = countOrdersByStatus(data);
-
-    if (data.length === 0) {
-      return <Text style={styles.noOrdersText}>Không có đơn hàng trong mục này</Text>;
-    }
-
-    return (
-      <View>
-        <View style={styles.summaryContainer}>
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryText, styles.completedText]}>
-              ✅ Hoàn thành: {counts.completed}
-            </Text>
-          </View>
-          <View style={styles.summaryItem}>
-            <Text style={[styles.summaryText, styles.failedText]}>
-              ❌ Thất bại: {counts.failed}
-            </Text>
-          </View>
-        </View>
-
-        {data.map(order => renderOrderItem(order))}
-      </View>
-    );
+  const getStats = (orders) => {
+    return orders.reduce((acc, order) => {
+      if (order.Order_status === 'Hoàn thành') acc.completed++;
+      else if (order.Order_status === 'Thất bại') acc.failed++;
+      return acc;
+    }, { completed: 0, failed: 0 });
   };
+
+  const monthName = (monthNumber) => {
+    const date = new Date();
+    date.setMonth(monthNumber);
+    return `Tháng ${monthNumber + 1}`;
+  };
+
+  const currentOrders = activeTab === 0 ? thisMonthOrders : lastMonthOrders;
+  const { completed, failed } = getStats(currentOrders);
+  const currentMonthIndex = new Date().getMonth();
+  const lastMonthIndex = currentMonthIndex === 0 ? 11 : currentMonthIndex - 1;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>📜 LỊCH SỬ GIAO HÀNG</Text>
+      <Text style={styles.header}>LỊCH SỬ GIAO HÀNG</Text>
 
       <View style={styles.tabContainer}>
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 0 && styles.activeTab]}
           onPress={() => setActiveTab(0)}
         >
-          <Text style={styles.tabText}>Tháng này ({currentMonthOrders.length})</Text>
+          <Text style={styles.tabText}>{monthName(currentMonthIndex)}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tabButton, activeTab === 1 && styles.activeTab]}
           onPress={() => setActiveTab(1)}
         >
-          <Text style={styles.tabText}>Tháng trước ({previousMonthOrders.length})</Text>
+          <Text style={styles.tabText}>{monthName(lastMonthIndex)}</Text>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.summaryContainer}>
+        <View style={styles.summaryItem}>
+          <Text style={[styles.summaryText, styles.completedText]}>
+            🟢 Hoàn thành: {completed}
+          </Text>
+        </View>
+        <View style={styles.summaryItem}>
+          <Text style={[styles.summaryText, styles.failedText]}>
+            🔴 Thất bại: {failed}
+          </Text>
+        </View>
       </View>
 
       {loading ? (
@@ -159,7 +140,13 @@ const OrderHistoryScreen = ({ route }) => {
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
-          {renderTabContent()}
+          {currentOrders.length > 0 ? (
+            currentOrders
+              .sort((a, b) => new Date(b.assigned_at) - new Date(a.assigned_at))
+              .map(renderOrderItem)
+          ) : (
+            <Text style={styles.noOrdersText}>Không có đơn hàng trong mục này</Text>
+          )}
         </ScrollView>
       )}
     </View>
@@ -225,8 +212,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     marginTop: 10,
-    fontWeight: 'bold',
-    color: '#333'
+    fontWeight: 'bold'
   },
   noOrdersText: {
     textAlign: 'center',

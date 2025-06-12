@@ -13,7 +13,7 @@ const ActiveOrderScreen = ({ route }) => {
   const fetchActiveOrder = async () => {
     try {
       setLoading(true);
-      // Sử dụng API đã có và lọc ra đơn đang giao
+
       const response = await axios.get(`${API_URL}/drivers/${StaffID}/assigned-orders`);
       const active = response.data.find(order => order.Order_status === 'Đang giao');
       setActiveOrder(active || null);

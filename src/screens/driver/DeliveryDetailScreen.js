@@ -189,7 +189,7 @@ const DeliveryDetailScreen = ({ route }) => {
       });
 
       if (status === 'Thất bại') {
-        // Quay về tab "Đơn thất bại"
+
         navigation.navigate('DriverDashboardScreen', {
           StaffID: StaffID,
           initialTab: 2
