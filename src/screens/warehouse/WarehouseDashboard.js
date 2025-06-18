@@ -21,25 +21,26 @@ const data = [
     image: require('../../../assets/img/icons/storageCarrier.png'),
     screen: 'DriverAssignmentScreen',
   },
-  /*
   {
     id: '4',
-    label: 'Đơn hàng bị trả về',
+    label: 'Lấy đơn về kho',
     image: require('../../../assets/img/icons/storage3.png'),
-    screen: 'WarehouseReturnedOrders',
+    screen: 'AssignPickupScreen',
   },
-  */
 ];
 
 const WarehouseDashboard = ({ route }) => {
   const navigation = useNavigation();
-  const { staffId } = route.params; 
+  const { StaffID, WarehouseID } = route.params; 
 
   const renderCard = ({ item }) => (
     <View style={styles.cardWrapper}>
       <TouchableOpacity
         style={styles.card}
-        onPress={() => navigation.navigate(item.screen, { staffId })}
+        onPress={() => navigation.navigate(item.screen, { 
+          StaffID, 
+          WarehouseID
+        })}
       >
         <View style={styles.iconContainer}>
           <Image source={item.image} style={styles.icon} />

@@ -8,19 +8,14 @@ import {
   PanResponder,
   Animated,
   Dimensions,
-  ScrollView
+  ScrollView,
+  Linking
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
 import axios from 'axios';
 import * as FileSystem from 'expo-file-system';
-import * as Camera from 'expo-camera';
-import { Camera as CameraComponent } from 'expo-camera';
-
-console.log('Is Camera a function?', typeof Camera === 'function');
-console.log('MapView:', MapView);
-console.log('Camera:', Camera);
-
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
 import API_URL from '../../config/apiconfig';
 
@@ -28,14 +23,13 @@ const { height } = Dimensions.get('window');
 const MIN_HEIGHT = height * 0.4;
 const MAX_HEIGHT = height * 0.8;
 
-
 const DeliveryDetailScreen = ({ route }) => {
   const { order, StaffID } = route.params;
   const navigation = useNavigation();
 
   const cameraRef = useRef(null);
+  const [permission, requestPermission] = useCameraPermissions();
   const [hasCameraPermission, setHasCameraPermission] = useState(null);
-
   const [currentLocation, setCurrentLocation] = useState(null);
   const [region, setRegion] = useState({
     latitude: 10.8231,
@@ -43,13 +37,56 @@ const DeliveryDetailScreen = ({ route }) => {
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
+  const [isCameraVisible, setIsCameraVisible] = useState(false);
 
   const panY = useRef(new Animated.Value(MIN_HEIGHT)).current;
+
+  // Xử lý quyền camera
+  useEffect(() => {
+    (async () => {
+      if (!permission?.granted) {
+        const { status } = await requestPermission();
+        setHasCameraPermission(status === 'granted');
+
+        if (status !== 'granted') {
+          Alert.alert(
+            'Yêu cầu quyền truy cập',
+            'Vui lòng cấp quyền camera trong cài đặt',
+            [
+              { text: 'Mở cài đặt', onPress: () => Linking.openSettings() },
+              { text: 'Hủy', style: 'cancel' }
+            ]
+          );
+        }
+      } else {
+        setHasCameraPermission(true);
+      }
+    })();
+  }, [permission]);
+
+  // Xử lý quyền vị trí
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Thông báo', 'Cần cấp quyền truy cập vị trí để sử dụng');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      setCurrentLocation(location.coords);
+      setRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    })();
+  }, []);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: (_, gestureState) => {
-
         return gestureState.y0 < (height - MIN_HEIGHT + 40);
       },
       onPanResponderMove: (_, gestureState) => {
@@ -69,98 +106,75 @@ const DeliveryDetailScreen = ({ route }) => {
             toValue: MAX_HEIGHT,
             useNativeDriver: false,
           }).start();
-        } else {
-          Animated.spring(panY, {
-            toValue: panY._value,
-            useNativeDriver: false,
-          }).start();
         }
       },
     })
   ).current;
 
-  useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      console.log('CAMERA PERMISSION:', status);
-      setHasCameraPermission(status === 'granted');
-    })();
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Thông báo', 'Cần cấp quyền truy cập vị trí để sử dụng tính năng này');
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({});
-      setCurrentLocation(location.coords);
-      setRegion({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
+  const handleTakePicture = async () => {
+    if (!cameraRef.current) return;
+    
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.8,
+        skipProcessing: true,
       });
-    })();
-  }, []);
-
-  // hàm chụp ảnh và lưu vào bộ nhớ đệm ứng dụng
-  const takePictureAndCache = async () => {
-    if (cameraRef.current) {
-      const photo = await cameraRef.current.takePictureAsync();
-      const fileName = `delivery_${Date.now()}.jpg`;
-      const newPath = FileSystem.cacheDirectory + fileName;
-      await FileSystem.moveAsync({
-        from: photo.uri,
-        to: newPath
-      });
-      return newPath;
+      
+      setIsCameraVisible(false);
+      showConfirmationDialog(photo.uri);
+    } catch (error) {
+      console.error('Lỗi chụp ảnh:', error);
+      Alert.alert('Lỗi', 'Không thể chụp ảnh');
     }
-    return null;
   };
 
-  const handleDeliverySuccess = async () => {
+  const showConfirmationDialog = (imageUri) => {
+    Alert.alert(
+      'Xác nhận ảnh',
+      'Bạn có chắc chắn muốn dùng ảnh này để xác nhận?',
+      [
+        {
+          text: 'Hủy',
+          style: 'cancel',
+          onPress: () => {}
+        },
+        {
+          text: 'Xác nhận',
+          onPress: () => confirmDelivery(imageUri)
+        }
+      ]
+    );
+  };
+
+  const confirmDelivery = async (imageUri) => {
+    try {
+      const fileName = `delivery_${Date.now()}.jpg`;
+      const newPath = FileSystem.cacheDirectory + fileName;
+
+      await FileSystem.moveAsync({
+        from: imageUri,
+        to: newPath
+      });
+
+      await axios.put(`${API_URL}/orders/${order.OrderID}/status`, {
+        newStatus: 'Hoàn thành',
+        proof_image: newPath
+      });
+
+      Alert.alert('Thành công', 'Đã xác nhận giao hàng thành công!');
+      navigation.goBack();
+    } catch (error) {
+      console.error('Lỗi xác nhận:', error);
+      Alert.alert('Lỗi', 'Không thể xác nhận đơn hàng');
+    }
+  };
+
+  const handleDeliverySuccess = () => {
     if (!hasCameraPermission) {
-      Alert.alert('Cảnh báo', 'Chưa được cấp quyền sử dụng camera');
+      Alert.alert('Vui lòng cấp quyền camera để chụp ảnh xác nhận');
       return;
     }
-
-    try {
-      const uri = await takePictureAndCache();
-      if (!uri) {
-        Alert.alert('Lỗi', 'Không thể chụp ảnh');
-        return;
-      }
-      Alert.alert(
-        'Xác nhận',
-        'Xác nhận đơn đã giao thành công?',
-        [
-          {
-            text: 'Hủy',
-            style: 'cancel'
-          },
-          {
-            text: 'Xác nhận',
-            onPress: async () => {
-              try {
-                await axios.put(`${API_URL}/orders/${order.OrderID}/status`, {
-                  newStatus: 'Hoàn thành',
-                  proof_image: uri
-                });
-                Alert.alert('Thành công', 'Đã cập nhật trạng thái đơn hàng');
-                navigation.goBack();
-              } catch (error) {
-                Alert.alert('Lỗi', 'Không thể cập nhật trạng thái');
-              }
-            }
-          }
-        ]
-      );
-    } catch (error) {
-      Alert.alert('Lỗi', 'Có lỗi xảy ra khi xử lý');
-    }
+    setIsCameraVisible(true);
   };
 
   const handleDeliveryFailure = () => {
@@ -176,7 +190,10 @@ const DeliveryDetailScreen = ({ route }) => {
           text: 'Khách từ chối nhận',
           onPress: () => updateStatus('Thất bại', 'Khách từ chối nhận')
         },
-        { text: 'Hủy', style: 'cancel' }
+        {
+          text: 'Hủy',
+          style: 'cancel'
+        }
       ]
     );
   };
@@ -189,7 +206,6 @@ const DeliveryDetailScreen = ({ route }) => {
       });
 
       if (status === 'Thất bại') {
-
         navigation.navigate('DriverDashboardScreen', {
           StaffID: StaffID,
           initialTab: 2
@@ -204,6 +220,22 @@ const DeliveryDetailScreen = ({ route }) => {
 
   return (
     <View style={styles.container}>
+      {isCameraVisible && (
+        <View style={styles.cameraContainer}>
+          <CameraView
+            ref={cameraRef}
+            style={StyleSheet.absoluteFill}
+            facing="back"
+          />
+          <TouchableOpacity
+            style={styles.captureButton}
+            onPress={handleTakePicture}
+          >
+            <Text style={styles.captureText}>📸</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <Animated.View
         style={[styles.mapContainer, { height: Animated.subtract(height, panY) }]}
       >
@@ -231,6 +263,7 @@ const DeliveryDetailScreen = ({ route }) => {
         </TouchableOpacity>
       </Animated.View>
 
+
       <Animated.View
         style={[styles.infoPanel, { height: panY }]}
         {...panResponder.panHandlers}
@@ -257,33 +290,28 @@ const DeliveryDetailScreen = ({ route }) => {
             <TouchableOpacity
               style={[styles.button, styles.successButton]}
               onPress={handleDeliverySuccess}
+              disabled={isCameraVisible}
             >
               <Text style={styles.buttonText}>✔️ GIAO HÀNG THÀNH CÔNG</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.failureButton]}
               onPress={handleDeliveryFailure}
+              disabled={isCameraVisible}
             >
               <Text style={styles.buttonText}>✖️ GIAO HÀNG THẤT BẠI</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
-        {hasCameraPermission && (
-          <CameraComponent
-            ref={cameraRef}
-            style={{ height: 1, width: 1, position: 'absolute', bottom: -1000 }}
-          />
-        )}
       </Animated.View>
     </View>
   );
-
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  mapContainer: { height: 300, width: '100%' },
-  map: { ...StyleSheet.absoluteFillObject },
+  mapContainer: { width: '100%' },
+  map: StyleSheet.absoluteFillObject,
   header: { fontSize: 18, fontWeight: 'bold', margin: 15, color: '#2c3e50', textAlign: 'center' },
   infoContainer: {
     backgroundColor: '#E0E0E0',
@@ -331,7 +359,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 14,
   },
-
   dragHandle: {
     width: 40,
     height: 5,
@@ -339,8 +366,26 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     alignSelf: 'center',
     marginVertical: 8,
-  }
-
+  },
+  cameraContainer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 100,
+    backgroundColor: 'black',
+  },
+  captureButton: {
+    position: 'absolute',
+    bottom: 30,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  captureText: {
+    fontSize: 30,
+  },
 });
 
 export default DeliveryDetailScreen;

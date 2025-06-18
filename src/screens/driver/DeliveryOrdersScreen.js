@@ -16,7 +16,7 @@ const DeliveryOrdersScreen = ({ route }) => {
       setLoading(true);
       const response = await axios.get(`${API_URL}/drivers/${StaffID}/assigned-orders`);
       const rawData = response.data;
-      // Giữ đơn mới nhất nếu trùng OrderID, lọc đơn trùng OrderID
+
       const uniqueOrders = Object.values(
         rawData.reduce((acc, item) => {
           const existing = acc[item.OrderID];
@@ -27,15 +27,6 @@ const DeliveryOrdersScreen = ({ route }) => {
         }, {})
       );
 
-      /*
-      cái cũ
-      const uniqueOrders = Object.values(
-        rawData.reduce((acc, item) => {
-          acc[item.OrderID] = item;
-          return acc;
-        }, {})
-      );
-*/
       setOrders(uniqueOrders);
     } catch (error) {
       console.error('Lỗi khi lấy đơn hàng:', error);
@@ -110,7 +101,7 @@ const DeliveryOrdersScreen = ({ route }) => {
       <Text style={styles.receiverInfo}>👤Người nhận: {item.Receiver_name}</Text>
       <Text style={styles.receiverInfo}>📍Địa chỉ giao: {item.Receiver_address}</Text>
       <Text style={styles.receiverInfo}>📦 Dịch vụ: {item.Service_name}</Text>
-
+      <Text style={styles.receiverInfo}>🏭 Kho xuất phát: {item.Warehouse_name || 'Không xác định'}</Text>
       {isFailed && (
         <Text style={styles.returnReason}>❗ Lý do: {Math.random() < 0.5 ? 'Không gặp khách' : 'Khách từ chối nhận'}</Text>
       )}

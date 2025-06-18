@@ -4,7 +4,7 @@ import axios from 'axios';
 import API_URL from '../../config/apiconfig';
 
 const WarehouseProcessingScreen = ({ route, navigation }) => {
-  const { order } = route.params;
+  const { order, WarehouseID } = route.params;
 
   const [form, setForm] = useState({
     weight: '',
@@ -53,21 +53,15 @@ const WarehouseProcessingScreen = ({ route, navigation }) => {
 
     try {
       await axios.post(`${API_URL}/orders/${order.OrderID}/package`, {
-        order_id: order.OrderID,
-        sender_id: order.Sender_id,
-        receiver_id: order.Receiver_id || 1,
-        service_id: order.Service_id,
-        weight: form.weight,
+        weight: parseFloat(form.weight),
         dimensions: {
-          length,
-          width,
-          height
+          length: parseFloat(length),
+          width: parseFloat(width),
+          height: parseFloat(height)
         },
-        value: form.itemValue,
-        current_warehouse_id: 11,
+        current_warehouse_id: WarehouseID,
         ship_cost: shippingFee,
-        distance: distance,
-        region_type: regionType
+        item_value: parseFloat(form.itemValue || 0)
       });
 
       Alert.alert('Thành công', 'Đơn hàng đã được xử lý', [
@@ -140,7 +134,6 @@ const WarehouseProcessingScreen = ({ route, navigation }) => {
         <Text style={styles.completeButtonText}>BẮT ĐẦU TÍNH PHÍ</Text>
       </TouchableOpacity>
 
-      {/* PHÍ VẬN CHUYỂN */}
       <View style={styles.feeContainer}>
         <Text style={styles.feeLabel}>Phí vận chuyển:</Text>
         {loading ? (

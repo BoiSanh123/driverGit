@@ -3,16 +3,19 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, RefreshContr
 import axios from 'axios';
 import API_URL from '../../config/apiconfig';
 
-const WarehouseScreen = ({ navigation }) => {
+const WarehouseScreen = ({ route, navigation }) => {
   const [orders, setOrders] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
+  const { WarehouseID } = route.params;
 
   const fetchOrders = async () => {
     try {
       setRefreshing(true);
-      const response = await axios.get(`${API_URL}/orders/processed`);
+      const response = await axios.get(`${API_URL}/orders/processed`, {
+        params: { warehouseId: WarehouseID }
+      });
       setOrders(response.data);
     } catch (error) {
       console.error('Lỗi tải đơn hàng:', error);
@@ -38,12 +41,15 @@ const WarehouseScreen = ({ navigation }) => {
 
   const handleAssignToDriver = async (orderId, StaffID) => {
     try {
-      await axios.post(`${API_URL}/orders/${orderId}/assign`, { StaffID });
+      await axios.post(`${API_URL}/orders/${orderId}/assign`, {
+        StaffID,
+        warehouseId: WarehouseID
+      });
       Alert.alert('Thành công', 'Đã phân bố đơn hàng');
       setExpandedOrderId(null);
       fetchOrders();
     } catch (error) {
-      Alert.alert('Lỗi', 'Phân bố không thành công');
+      Alert.alert('Lỗi', error.response?.data?.message || 'Phân bố không thành công');
     }
   };
 
@@ -61,41 +67,44 @@ const WarehouseScreen = ({ navigation }) => {
         <Text>Khối lượng: {item.Weight} kg</Text>
         <Text>Phí vận chuyển: {parseFloat(item.Ship_cost).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} VND</Text>
         <Text>Dịch vụ: {item.Service_name}</Text>
+        <Text>Trạng thái Package: {item.Package_status}</Text>
       </TouchableOpacity>
 
-      <View style={{ paddingHorizontal: 15, marginBottom: 10 }}>
-        <TouchableOpacity
-          style={styles.dropdownToggle}
-          onPress={() => {
-            setExpandedOrderId(expandedOrderId === item.OrderID ? null : item.OrderID);
-          }}
-        >
-          <Text style={styles.dropdownText}>Phân bố ▼</Text>
-        </TouchableOpacity>
+      {item.Package_status === 'Đang xử lý' && (
+        <View style={{ paddingHorizontal: 15, marginBottom: 10 }}>
+          <TouchableOpacity
+            style={styles.dropdownToggle}
+            onPress={() => {
+              setExpandedOrderId(expandedOrderId === item.OrderID ? null : item.OrderID);
+            }}
+          >
+            <Text style={styles.dropdownText}>Phân bố ▼</Text>
+          </TouchableOpacity>
 
-        {expandedOrderId === item.OrderID && (
-          <View style={styles.dropdownMenu}>
-            {drivers.map(driver => (
-              <TouchableOpacity
-                key={driver.StaffID}
-                style={styles.driverOption}
-                onPress={() => handleAssignToDriver(item.OrderID, driver.StaffID)}
-              >
-                <Text>{driver.Name} ({driver.Phone})</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </View>
+          {expandedOrderId === item.OrderID && (
+            <View style={styles.dropdownMenu}>
+              {drivers.map(driver => (
+                <TouchableOpacity
+                  key={driver.StaffID}
+                  style={styles.driverOption}
+                  onPress={() => handleAssignToDriver(item.OrderID, driver.StaffID)}
+                >
+                  <Text>{driver.Name} ({driver.Phone})</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
-        <Text style={styles.header}>DANH SÁCH ĐƠN</Text>
+        <Text style={styles.header}>DANH SÁCH ĐƠN CHỜ PHÂN BỐ</Text>
         <View style={styles.totalOrdersContainer}>
-          <Text style={styles.totalOrdersText}>Tổng: {orders.filter(order => order.Order_status !== 'Mới tạo').length} đơn</Text>
+          <Text style={styles.totalOrdersText}>Tổng: {orders.length} đơn</Text>
         </View>
       </View>
 
@@ -109,7 +118,7 @@ const WarehouseScreen = ({ navigation }) => {
       </View>
 
       <FlatList
-        data={orders.filter(order => order.Order_status !== 'Mới tạo')}
+        data={orders}
         renderItem={renderItem}
         keyExtractor={item => item.OrderID.toString()}
         refreshControl={
@@ -126,100 +135,88 @@ const WarehouseScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 15,
-    backgroundColor: '#EEEEEE'
+    padding: 10,
+    backgroundColor: '#f5f5f5',
   },
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15
+    marginBottom: 10,
   },
   header: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#2c3e50'
   },
   totalOrdersContainer: {
-    backgroundColor: '#3498db',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15
+    backgroundColor: '#e0e0e0',
+    padding: 5,
+    borderRadius: 10,
   },
   totalOrdersText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14
+    fontSize: 14,
   },
   buttonGroup: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: 15
+    marginBottom: 10,
   },
   button: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center'
+    padding: 10,
+    borderRadius: 5,
+    marginRight: 10,
   },
   refreshButton: {
-    backgroundColor: '#3498db'
+    backgroundColor: '#4CAF50',
   },
   buttonText: {
-    color: '#fff',
-    fontWeight: 'bold'
+    color: 'white',
+    fontWeight: 'bold',
   },
   orderCard: {
-    backgroundColor: '#fff',
-    marginBottom: 10,
+    backgroundColor: 'white',
     borderRadius: 8,
+    padding: 15,
+    marginBottom: 10,
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 2,
-    overflow: 'hidden'
   },
   cardContent: {
-    paddingTop: 15,
-    paddingBottom: 30,
-    paddingHorizontal: 15,
+    marginBottom: 10,
   },
   orderCode: {
     fontWeight: 'bold',
     fontSize: 16,
-    color: '#3498db',
-    marginBottom: 5
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 20,
-    color: '#7f8c8d'
+    marginBottom: 5,
   },
   dropdownToggle: {
-    backgroundColor: '#f1f1f1',
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ccc'
+    backgroundColor: '#2196F3',
+    padding: 8,
+    borderRadius: 5,
+    alignItems: 'center',
   },
   dropdownText: {
+    color: 'white',
     fontWeight: 'bold',
-    color: '#333'
   },
   dropdownMenu: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ccc',
     marginTop: 5,
-    maxHeight: 200
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
   },
   driverOption: {
     padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee'
-  }
+    borderBottomColor: '#eee',
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#888',
+  },
 });
 
 export default WarehouseScreen;

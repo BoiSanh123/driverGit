@@ -4,15 +4,18 @@ import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import API_URL from '../../config/apiconfig';
 
-const WarehouseOrderScreen = () => {
+const WarehouseOrderScreen = ({ route }) => {
   const [orders, setOrders] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
+  const { WarehouseID } = route.params;
 
   const fetchOrders = async () => {
     try {
       setRefreshing(true);
-      const response = await axios.get(`${API_URL}/orders`);
+      const response = await axios.get(`${API_URL}/warehouse-new-orders`, {
+        params: { warehouseId: WarehouseID }
+      });
       setOrders(response.data);
     } catch (error) {
       console.error('Lỗi tải đơn hàng:', error);
@@ -28,8 +31,10 @@ const WarehouseOrderScreen = () => {
   const renderItem = ({ item }) => (
     <TouchableOpacity
       style={styles.card}
-      onPress={() => navigation.navigate('WarehouseProcessingScreen', { order: item })}
-
+      onPress={() => navigation.navigate('WarehouseProcessingScreen', {
+        order: item,
+        WarehouseID
+      })}
     >
       <Text style={styles.orderCode}>📦 #{item.Order_code}</Text>
       <Text style={styles.infoText}>📅 {new Date(item.Created_at).toLocaleDateString()}</Text>

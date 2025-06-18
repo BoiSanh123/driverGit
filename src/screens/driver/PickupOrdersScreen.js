@@ -1,120 +1,225 @@
-// Đơn cần lấy hàng
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  RefreshControl,
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  ScrollView
+} from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import axios from 'axios';
+import API_URL from '../../config/apiconfig';
 
-const PickupOrdersScreen = () => {
-  const [orders, setOrders] = useState([]);
+const { width } = Dimensions.get('window');
+
+const PickupOrdersScreen = ({ navigation, route }) => {
+  const [activeTab, setActiveTab] = useState(0);
+  const [pendingOrders, setPendingOrders] = useState([]);
+  const [completedOrders, setCompletedOrders] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeOrder, setActiveOrder] = useState(null);
-  const [currentStep, setCurrentStep] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [warehouses, setWarehouses] = useState([]);
+  const [selectedWarehouse, setSelectedWarehouse] = useState(null);
+  const [expandedWarehouseDropdown, setExpandedWarehouseDropdown] = useState(false);
+  const StaffID = route.params.StaffID;
+  const tabPosition = useState(new Animated.Value(0))[0];
 
-  const fetchOrders = async () => {
+  const fetchAllData = async () => {
     try {
       setRefreshing(true);
-      const response = await axios.get(`${API_URL}/orders`);
-      setOrders(response.data);
+      setLoading(true);
+
+      const warehousesResponse = await axios.get(`${API_URL}/warehouses`);
+      setWarehouses(warehousesResponse.data);
+
+      const [pendingResponse, completedResponse] = await Promise.all([
+        axios.get(`${API_URL}/driver-pickup-orders`, { params: { driverId: StaffID } }),
+        axios.get(`${API_URL}/driver-completed-pickups`, { params: { driverId: StaffID } })
+      ]);
+
+      setPendingOrders(pendingResponse.data);
+      setCompletedOrders(completedResponse.data);
     } catch (error) {
-      console.error('Lỗi tải đơn hàng:', error);
+      console.error('Lỗi tải dữ liệu:', error);
+      Alert.alert('Lỗi', 'Không thể tải dữ liệu');
     } finally {
       setRefreshing(false);
+      setLoading(false);
+    }
+  };
+
+  const handleTabChange = (tabIndex) => {
+    setActiveTab(tabIndex);
+    Animated.spring(tabPosition, {
+      toValue: tabIndex,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleStartPickup = async (order) => {
+    try {
+      await axios.post(`${API_URL}/update-tracking`, {
+        orderId: order.OrderID,
+        staffId: StaffID,
+        status: 'Đang lấy'
+      });
+      navigation.navigate('PickupDetailScreen', {
+        order: {
+          OrderID: order.OrderID,
+          Order_code: order.Order_code,
+          Sender_name: order.Sender_name,
+          Sender_phone: order.Sender_phone,
+          Sender_address: order.Sender_address,
+          Service_name: order.Service_name
+        },
+        StaffID
+      });
+      fetchAllData();
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể bắt đầu lấy đơn');
+    }
+  };
+
+  const handleDeliverToWarehouse = async (orderId) => {
+    if (!selectedWarehouse) {
+      Alert.alert('Lỗi', 'Vui lòng chọn kho nhận hàng');
+      return;
+    }
+
+    try {
+      await axios.post(`${API_URL}/deliver-to-warehouse`, {
+        orderId,
+        warehouseId: selectedWarehouse,
+        staffId: StaffID
+      });
+      Alert.alert('Thành công', 'Đơn hàng đã được giao cho kho');
+      fetchAllData();
+    } catch (error) {
+      console.error('Lỗi giao kho:', error);
+      Alert.alert('Lỗi', error.response?.data?.message || 'Không thể giao đơn cho kho');
     }
   };
 
   useEffect(() => {
-    fetchOrders();
+    fetchAllData();
   }, []);
 
-  const handleStartPickup = (order) => {
-    setActiveOrder(order);
-    setCurrentStep(1);
-  };
+  const renderOrderItem = (item, isCompleted = false) => (
+    <View style={[styles.orderCard, isCompleted && styles.completedOrderCard]}>
+      <Text style={styles.orderCode}>Đơn hàng #{item.Order_code || item.order_code}</Text>
+      <Text style={styles.senderInfo}>👤 Người gửi: {item.Sender_name}</Text>
+      <Text style={styles.senderInfo}>📍 Địa chỉ: {item.Sender_address}</Text>
+      <Text style={styles.senderInfo}>📦 Dịch vụ: {item.Service_name}</Text>
 
-  const handlePickedUp = () => {
-    setCurrentStep(2);
-  };
-
-  const handleDeliverToWarehouse = async () => {
-    try {
-      await axios.post(`${API_URL}/tracking`, {
-        order_id: activeOrder.OrderID,
-        staff_id: staffId,
-        status: "Đã giao cho kho",
-        location: "Kho trung tâm",
-        timestamp: new Date().toISOString()
-      });
-      await axios.put(`${API_URL}/orders/${activeOrder.OrderID}/status`, {
-        newStatus: "Đang giao"
-      });
-      setCurrentStep(0);
-      setActiveOrder(null);
-      fetchOrders(); 
-    } catch (error) {
-      console.error('Lỗi khi giao kho:', error);
-    }
-  };
-
-  const renderOrderItem = ({ item }) => (
-    <View style={styles.orderCard}>
-      <Text style={styles.orderCode}>Mã đơn: {item.Order_code}</Text>
-      <Text style={styles.customerName}>Người gửi: Khách hàng #{item.Sender_id}</Text>
-      <Text style={styles.customerPhone}>SĐT: [Số điện thoại]</Text>
-      <Text style={styles.customerAddress}>Địa chỉ: [Địa chỉ người gửi]</Text>
-      
-      {activeOrder?.OrderID === item.OrderID ? (
-        <View style={styles.buttonGroup}>
-          {currentStep >= 1 && (
-            <TouchableOpacity 
-              style={[styles.button, styles.disabledButton]}
-              disabled
-            >
-              <Text style={styles.buttonText}>Đã bắt đầu lấy</Text>
-            </TouchableOpacity>
-          )}
-          {currentStep === 1 && (
-            <TouchableOpacity 
-              style={styles.button}
-              onPress={handlePickedUp}
-            >
-              <Text style={styles.buttonText}>Đã lấy hàng</Text>
-            </TouchableOpacity>
-          )}
-          {currentStep === 2 && (
-            <TouchableOpacity 
-              style={[styles.button, styles.deliverButton]}
-              onPress={handleDeliverToWarehouse}
-            >
-              <Text style={styles.buttonText}>Giao cho kho</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      ) : (
-        <TouchableOpacity 
-          style={styles.button}
-          onPress={() => handleStartPickup(item)}
-          disabled={activeOrder !== null}
+      <View style={styles.assignButtonWrapper}>
+        <TouchableOpacity
+          onPress={() => isCompleted ? handleDeliverToWarehouse(item.OrderID) : handleStartPickup(item)}
+          style={isCompleted ? styles.buttonDeliver : styles.buttonStart}
         >
-          <Text style={styles.buttonText}>Bắt đầu lấy hàng</Text>
+          <Text style={styles.assignButtonText}>
+            {isCompleted ? 'GIAO CHO KHO' : 'BẮT ĐẦU LẤY'}
+          </Text>
         </TouchableOpacity>
-      )}
+      </View>
     </View>
   );
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>ĐƠN HÀNG CẦN LẤY</Text>
-      <FlatList
-        data={orders}
-        keyExtractor={(item) => item.OrderID.toString()}
-        renderItem={renderOrderItem}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 0 && styles.activeTab]}
+          onPress={() => handleTabChange(0)}
+        >
+          <Text style={styles.tabText}>CẦN LẤY ({pendingOrders.length})</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 1 && styles.activeTab]}
+          onPress={() => handleTabChange(1)}
+        >
+          <Text style={styles.tabText}>ĐÃ LẤY ({completedOrders.length})</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        style={styles.tabContent}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={fetchOrders} 
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={fetchAllData} />
         }
-        contentContainerStyle={styles.listContent}
-      />
+      >
+        {activeTab === 0 ? (
+          <>
+            <Text style={styles.tabHeader}>ĐƠN CẦN LẤY ({pendingOrders.length})</Text>
+            {pendingOrders.length > 0 ? (
+              pendingOrders.map((item, index) => (
+                <View key={index}>
+                  {renderOrderItem(item)}
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyText}>Không có đơn nào cần lấy</Text>
+            )}
+          </>
+        ) : (
+          <>
+            <View style={styles.warehouseSelector}>
+              <TouchableOpacity
+                style={styles.dropdownToggle}
+                onPress={() =>
+                  setExpandedWarehouseDropdown((prev) => !prev)
+                }
+              >
+                <Text style={styles.dropdownText}>
+                  {selectedWarehouse
+                    ? warehouses.find(w => w.WarehouseID === selectedWarehouse)?.Name
+                    : 'Chọn kho đã giao đến'} ▼
+                </Text>
+              </TouchableOpacity>
+
+              {expandedWarehouseDropdown && (
+                <View style={styles.dropdownMenu}>
+                  {warehouses.map(warehouse => (
+                    <TouchableOpacity
+                      key={warehouse.WarehouseID}
+                      style={styles.driverOption}
+                      onPress={() => {
+                        setSelectedWarehouse(warehouse.WarehouseID);
+                        setExpandedWarehouseDropdown(false);
+                      }}
+                    >
+                      <Text>{warehouse.Name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            <Text style={styles.tabHeader}>ĐƠN ĐÃ LẤY ({completedOrders.length})</Text>
+            {completedOrders.length > 0 ? (
+              completedOrders.map((item, index) => (
+                <View key={index}>
+                  {renderOrderItem(item, true)}
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyText}>Chưa có đơn nào đã lấy</Text>
+            )}
+          </>
+        )}
+      </ScrollView>
     </View>
   );
 };
@@ -122,73 +227,135 @@ const PickupOrdersScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 15,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f5f5f5'
   },
-  header: {
-    fontSize: 20,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd'
+  },
+  tabButton: {
+    padding: 10,
+    alignItems: 'center',
+    borderBottomWidth: 3,
+    borderBottomColor: 'transparent'
+  },
+  activeTab: {
+    borderBottomColor: '#FFD54F'
+  },
+  tabText: {
+    fontWeight: 'bold',
+    color: '#555',
+    fontSize: 12,
+    textAlign: 'center'
+  },
+  tabContent: {
+    flex: 1,
+    padding: 15
+  },
+  tabHeader: {
+    fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 15,
-    color: '#2c3e50',
-    textAlign: 'center',
-  },
-  listContent: {
-    paddingBottom: 20,
+    color: '#2c3e50'
   },
   orderCard: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
+    backgroundColor: '#E0E0E0',
     padding: 15,
-    marginBottom: 15,
+    marginBottom: 30,
+    borderRadius: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    shadowRadius: 5,
+    elevation: 2,
+    borderWidth: 5,
+    borderColor: '#FFD54F',
+    position: 'relative'
+  },
+  completedOrderCard: {
+    borderColor: '#2ecc71'
   },
   orderCode: {
+    fontWeight: 'bold',
     fontSize: 16,
-    fontWeight: 'bold',
     marginBottom: 8,
-    color: '#3498db',
+    color: '#3498db'
   },
-  customerName: {
+  senderInfo: {
     fontSize: 14,
     marginBottom: 5,
-    color: '#2c3e50',
+    color: '#555'
   },
-  customerPhone: {
-    fontSize: 14,
-    marginBottom: 5,
-    color: '#2c3e50',
+  assignButtonWrapper: {
+    position: 'absolute',
+    bottom: -20,
+    alignSelf: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    zIndex: 1,
   },
-  customerAddress: {
-    fontSize: 14,
-    marginBottom: 10,
-    color: '#2c3e50',
-  },
-  buttonGroup: {
-    marginTop: 10,
-  },
-  button: {
-    backgroundColor: '#3498db',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 5,
-  },
-  disabledButton: {
-    backgroundColor: '#95a5a6',
-  },
-  deliverButton: {
-    backgroundColor: '#27ae60',
-  },
-  buttonText: {
-    color: 'white',
+  assignButtonText: {
+    color: '#FAFAFA',
     fontWeight: 'bold',
+    fontSize: 12,
+    textAlign: 'center',
   },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#7f8c8d'
+  },
+  buttonStart: {
+    backgroundColor: '#FFD54F',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  buttonDeliver: {
+    backgroundColor: '#2ecc71',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  warehouseSelector: {
+    backgroundColor: '#fff',
+    padding: 15,
+    marginBottom: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd'
+  },
+  dropdownToggle: {
+  backgroundColor: '#2196F3',
+  padding: 8,
+  borderRadius: 5,
+  alignItems: 'center',
+  marginBottom: 10
+},
+dropdownText: {
+  color: 'white',
+  fontWeight: 'bold'
+},
+dropdownMenu: {
+  marginTop: 5,
+  borderWidth: 1,
+  borderColor: '#ddd',
+  borderRadius: 5,
+  backgroundColor: '#fff'
+},
+driverOption: {
+  padding: 10,
+  borderBottomWidth: 1,
+  borderBottomColor: '#eee'
+}
 });
 
 export default PickupOrdersScreen;

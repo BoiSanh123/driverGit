@@ -34,6 +34,10 @@ export default function DriverDashboardScreen({ route }) {
     navigation.navigate('ActiveOrderScreen', { StaffID });
   };
 
+  const handleActivePickupPress = () => {
+    navigation.navigate('ActivePickupScreen', { StaffID });
+  };
+
   const handleOrderHistoryPress = () => {
     navigation.navigate('OrderHistoryScreen', { StaffID });
   };
@@ -61,46 +65,48 @@ export default function DriverDashboardScreen({ route }) {
       </View>
 
       <View style={styles.menuContainer}>
-        <TouchableOpacity style={styles.menuItem} onPress={handlePickupPress}>
-          <View style={styles.iconCircle}>
-            <Image 
-              source={require('../../../assets/img/icons/driver1.png')} 
-              style={styles.iconImage}
-            />
-          </View>
-          <Text style={styles.menuText}>Lấy hàng</Text>
-        </TouchableOpacity>
+        {/* Hàng 1: 3 ô */}
+        <View style={styles.menuRow}>
+          <TouchableOpacity style={styles.menuItem} onPress={handlePickupPress}>
+            <View style={styles.iconCircle}>
+              <Image source={require('../../../assets/img/icons/driver1.png')} style={styles.iconImage} />
+            </View>
+            <Text style={styles.menuText}>Lấy hàng</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem} onPress={handleDeliveryPress}>
-          <View style={styles.iconCircle}>
-            <Image 
-              source={require('../../../assets/img/icons/driver3.png')} 
-              style={styles.iconImage}
-            />
-          </View>
-          <Text style={styles.menuText}>Giao hàng</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={handleDeliveryPress}>
+            <View style={styles.iconCircle}>
+              <Image source={require('../../../assets/img/icons/driver3.png')} style={styles.iconImage} />
+            </View>
+            <Text style={styles.menuText}>Giao hàng</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuItem} onPress={handleActiveOrdersPress}>
-          <View style={styles.iconCircle}>
-            <Image 
-              source={require('../../../assets/img/icons/driver2.png')} 
-              style={styles.iconImage}
-            />
-          </View>
-          <Text style={styles.menuText}>Đang giao</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={handleActiveOrdersPress}>
+            <View style={styles.iconCircle}>
+              <Image source={require('../../../assets/img/icons/driver2.png')} style={styles.iconImage} />
+            </View>
+            <Text style={styles.menuText}>Đang giao</Text>
+          </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity style={styles.menuItem} onPress={handleOrderHistoryPress}>
-          <View style={styles.iconCircle}>
-            <Image 
-              source={require('../../../assets/img/icons/driver4.png')} 
-              style={styles.iconImage}
-            />
-          </View>
-          <Text style={styles.menuText}>Lịch sử giao</Text>
-        </TouchableOpacity>
+        {/* Hàng 2: 2 ô */}
+        <View style={styles.menuRow}>
+          <TouchableOpacity style={styles.menuItemWide} onPress={handleActivePickupPress}>
+            <View style={styles.iconCircle}>
+              <Image source={require('../../../assets/img/icons/driver2.png')} style={styles.iconImage} />
+            </View>
+            <Text style={styles.menuText}>Đang lấy</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItemWide} onPress={handleOrderHistoryPress}>
+            <View style={styles.iconCircle}>
+              <Image source={require('../../../assets/img/icons/driver4.png')} style={styles.iconImage} />
+            </View>
+            <Text style={styles.menuText}>Lịch sử giao</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
     </View>
   );
 }
@@ -150,15 +156,9 @@ const styles = StyleSheet.create({
     color: '#FFD54F',
     fontWeight: 'bold',
   },
-  menuContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    marginTop: 20,
-  },
   menuItem: {
     alignItems: 'center',
-    width: '20%',
+    width: '33%',
   },
   iconCircle: {
     width: 60,
@@ -180,5 +180,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
     textAlign: 'center',
+  },
+  menuContainer: {
+    paddingHorizontal: 20,
+    marginTop: 20,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+  },
+  menuItemWide: {
+    alignItems: 'center',
+    width: '40%',
   },
 });

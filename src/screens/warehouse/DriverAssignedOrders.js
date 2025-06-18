@@ -41,7 +41,7 @@ const DriverAssignedOrders = ({ route }) => {
           text: 'Xác nhận',
           onPress: async () => {
             try {
-              await axios.put(`${API_URL}/orders/${orderId}/unassign`); // api chưa có 
+              await axios.put(`${API_URL}/orders/${orderId}/unassign`);
               await fetchAssignedOrders();
               Alert.alert('Thành công', 'Đã hủy phân bố đơn hàng');
             } catch (error) {
@@ -64,6 +64,7 @@ const DriverAssignedOrders = ({ route }) => {
       <Text style={styles.receiverInfo}>📍 {item.Receiver_address}</Text>
       <Text style={styles.receiverInfo}>📞 {item.Receiver_phone}</Text>
       <Text style={styles.receiverInfo}>⚖️ Khối lượng: {item.Weight} kg</Text>
+      <Text style={styles.receiverInfo}>🏭 Kho xuất phát: {item.Warehouse_name}</Text>
       <Text style={styles.receiverInfo}>🕐 Thời gian phân bố: {new Date(item.assigned_at).toLocaleString()}</Text>
 
       <TouchableOpacity
