@@ -24,7 +24,7 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="DriverDashboardScreen">
+      <Stack.Navigator initialRouteName="WarehouseDashboard">
         <Stack.Screen name="WarehouseDashboard" component={WarehouseDashboard} initialParams={{ StaffID: 21, WarehouseID: 11 }}  options={{ title: 'Trang chủ' }} />
         <Stack.Screen name="WarehouseOrderScreen" component={WarehouseOrderScreen} initialParams={{ StaffID: 21, WarehouseID: 11 }}  options={{ title: 'Đơn chờ xử lý 1' }} />
         <Stack.Screen name="WarehouseProcessingScreen" component={WarehouseProcessingScreen} initialParams={{ StaffID: 21, WarehouseID: 11 }}  options={{ title: 'Đơn chờ xử lý 2' }} />
