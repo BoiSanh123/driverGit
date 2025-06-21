@@ -26,7 +26,6 @@ const fetchHistoryOrders = async () => {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    // Bước 1: Nhóm các bản ghi Tracking theo OrderID, lấy bản ghi mới nhất
     const ordersMap = response.data.reduce((acc, order) => {
       const existing = acc[order.OrderID];
       const currentTimestamp = new Date(order.Timestamp);
@@ -39,12 +38,10 @@ const fetchHistoryOrders = async () => {
 
     const uniqueOrders = Object.values(ordersMap);
 
-    // Bước 2: Lọc các đơn Hoàn thành/Thất bại
     const filtered = uniqueOrders.filter(order => {
       return order.Order_status === 'Hoàn thành' || order.Order_status === 'Thất bại';
     });
 
-    // Bước 3: Phân loại theo tháng
     const thisMonth = [];
     const lastMonth = [];
 
@@ -53,11 +50,10 @@ const fetchHistoryOrders = async () => {
       const orderMonth = orderDate.getMonth();
       const orderYear = orderDate.getFullYear();
 
-      // Kiểm tra tháng hiện tại
       if (orderMonth === currentMonth && orderYear === currentYear) {
         thisMonth.push(order);
       } 
-      // Kiểm tra tháng trước (xử lý cả trường hợp năm mới)
+
       else if (
         (orderMonth === currentMonth - 1 && orderYear === currentYear) ||
         (currentMonth === 0 && orderMonth === 11 && orderYear === currentYear - 1)
@@ -69,7 +65,7 @@ const fetchHistoryOrders = async () => {
     setThisMonthOrders(thisMonth);
     setLastMonthOrders(lastMonth);
   } catch (err) {
-    console.error('❌ Lỗi khi lấy đơn hàng:', err);
+    console.error('Lỗi khi lấy đơn hàng:', err);
   } finally {
     setLoading(false);
   }
