@@ -17,6 +17,7 @@ const avatars = [
 const DriverAssignmentScreen = () => {
   const [staffs, setStaffs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
 
   const getAvatar = (StaffID) => {
@@ -103,6 +104,12 @@ const DriverAssignmentScreen = () => {
     );
   }
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchStaffs();
+    setRefreshing(false);
+  };
+
   return (
     <View style={styles.container}>
       {renderHeader()}
@@ -114,6 +121,8 @@ const DriverAssignmentScreen = () => {
         ListEmptyComponent={
           <Text style={styles.emptyText}>Không có nhân viên nào</Text>
         }
+        refreshing={refreshing}
+        onRefresh={onRefresh}
       />
     </View>
   );

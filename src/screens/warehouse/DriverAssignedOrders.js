@@ -1,79 +1,82 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import axios from 'axios';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import API_URL from '../../config/apiconfig';
 
-const DriverAssignedOrders = ({ route }) => {
-  const { StaffID } = route.params;
+const DriverAssignedOrders = () => {
+  const { StaffID } = useRoute().params;
+  const navigation = useNavigation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchAssignedOrders = async () => {
+  const fetchOrders = async () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/drivers/${StaffID}/assigned-orders`);
+      const latestTrackingOrders = response.data.reduce((acc, current) => {
+        const existingOrder = acc.find(item => item.OrderID === current.OrderID);
+        
+        if (!existingOrder || new Date(current.Timestamp) > new Date(existingOrder.Timestamp)) {
+          return [...acc.filter(item => item.OrderID !== current.OrderID), current];
+        }
+        return acc;
+      }, []);
 
-      // Loại trùng theo OrderID
-      const rawData = response.data;
-      const uniqueOrders = Object.values(
-        rawData.reduce((acc, item) => {
-          acc[item.OrderID] = item;
-          return acc;
-        }, {})
+      const filteredOrders = latestTrackingOrders.filter(order => 
+        order.Order_status === 'Mới tạo' && 
+        ['Cần lấy', 'Đang lấy', 'Đã lấy', 'Đang vận chuyển'].includes(order.Tracking_status)
       );
-
-      setOrders(uniqueOrders);
+      
+      setOrders(filteredOrders);
     } catch (error) {
-      console.error('Lỗi khi lấy danh sách đơn hàng:', error);
-      Alert.alert('Lỗi', 'Không thể lấy danh sách đơn hàng');
+      console.error('Lỗi khi lấy đơn hàng:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUnassignOrder = async (orderId) => {
-    Alert.alert(
-      'Xác nhận',
-      'Bạn chắc chắn muốn hủy phân bố đơn hàng này?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Xác nhận',
-          onPress: async () => {
-            try {
-              await axios.put(`${API_URL}/orders/${orderId}/unassign`);
-              await fetchAssignedOrders();
-              Alert.alert('Thành công', 'Đã hủy phân bố đơn hàng');
-            } catch (error) {
-              Alert.alert('Lỗi', error.response?.data?.error || 'Không thể hủy phân bố');
-            }
-          }
-        }
-      ]
-    );
-  };
-
   useEffect(() => {
-    fetchAssignedOrders();
+    fetchOrders();
   }, []);
 
-  const renderItem = ({ item }) => (
-    <View style={styles.orderCard}>
-      <Text style={styles.orderCode}>📦 Đơn #{item.Order_code}</Text>
-      <Text style={styles.receiverInfo}>👤 {item.Receiver_name}</Text>
-      <Text style={styles.receiverInfo}>📍 {item.Receiver_address}</Text>
-      <Text style={styles.receiverInfo}>📞 {item.Receiver_phone}</Text>
-      <Text style={styles.receiverInfo}>⚖️ Khối lượng: {item.Weight} kg</Text>
-      <Text style={styles.receiverInfo}>🏭 Kho xuất phát: {item.Warehouse_name}</Text>
-      <Text style={styles.receiverInfo}>🕐 Thời gian phân bố: {new Date(item.assigned_at).toLocaleString()}</Text>
+  const handleOrderPress = (order) => {
+    navigation.navigate('OrderDetail', { order });
+  };
 
-      <TouchableOpacity
-        style={styles.unassignButton}
-        onPress={() => handleUnassignOrder(item.OrderID)}
-      >
-        <Text style={styles.buttonText}>HỦY PHÂN BỐ</Text>
-      </TouchableOpacity>
-    </View>
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'Cần lấy': return '#FFA000';
+      case 'Đang lấy': return '#2196F3';
+      case 'Đã lấy': return '#4CAF50';
+      case 'Đang vận chuyển': return '#673AB7';
+      default: return '#9E9E9E';
+    }
+  };
+
+  const renderItem = ({ item }) => (
+    <TouchableOpacity
+      style={styles.orderCard}
+      onPress={() => handleOrderPress(item)}
+    >
+      <View style={styles.orderHeader}>
+        <Text style={styles.orderCode}>#{item.Order_code}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.Tracking_status) }]}>
+          <Text style={styles.statusText}>{item.Tracking_status}</Text>
+        </View>
+      </View>
+      
+      <Text style={styles.receiverInfo}>👤 Người nhận: {item.Receiver_name}</Text>
+      <Text style={styles.receiverInfo}>📞 SĐT: {item.Receiver_phone}</Text>
+      <Text style={styles.receiverInfo}>📍Nơi nhận: {item.Receiver_address}</Text>
+      <Text style={styles.receiverInfo}>📦 {item.Service_name} - {item.Weight}kg</Text>
+      <Text style={styles.receiverInfo}>🏭 Từ Kho: {item.Warehouse_name}</Text>
+      <Text style={styles.timestampText}>🕒 {new Date(item.Timestamp).toLocaleString()}</Text>
+      
+      {item.Tracking_notes && (
+        <Text style={styles.notesText}>📝 Ghi chú: {item.Tracking_notes}</Text>
+      )}
+    </TouchableOpacity>
   );
 
   if (loading) {
@@ -86,20 +89,13 @@ const DriverAssignedOrders = ({ route }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>📦 ĐƠN HÀNG ĐÃ PHÂN BỐ</Text>
-        <TouchableOpacity onPress={fetchAssignedOrders} style={styles.refreshButton}>
-          <Text style={styles.refreshText}>🔄 LÀM MỚI</Text>
-        </TouchableOpacity>
-      </View>
-
       <FlatList
         data={orders}
         renderItem={renderItem}
-        keyExtractor={item => item.OrderID.toString()}
+        keyExtractor={item => `order-${item.OrderID}-${item.Timestamp}`}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>Không có đơn hàng nào đã phân bố</Text>
+          <Text style={styles.emptyText}>Không có đơn hàng nào được giao</Text>
         }
       />
     </View>
@@ -112,58 +108,54 @@ const styles = StyleSheet.create({
     padding: 15,
     backgroundColor: '#f5f5f5'
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 15
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold'
-  },
-  refreshButton: {
-    backgroundColor: '#3498db',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginTop: 8
-  },
-  refreshText: {
-    color: '#fff',
-    fontWeight: 'bold'
-  },
   orderCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#E0E0E0',
     padding: 15,
     marginBottom: 10,
     borderRadius: 8,
-    borderLeftWidth: 8,
-    borderLeftColor: '#FFD54F',
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 2
   },
+  orderHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10
+  },
   orderCode: {
     fontWeight: 'bold',
     fontSize: 16,
-    color: '#3498db',
-    marginBottom: 5
+    color: '#3498db'
+  },
+  statusBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    minWidth: 100,
+    alignItems: 'center'
+  },
+  statusText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12
   },
   receiverInfo: {
     fontSize: 14,
     color: '#555',
-    marginBottom: 3
+    marginBottom: 5
   },
-  unassignButton: {
-    marginTop: 10,
-    backgroundColor: '#E53935',
-    padding: 10,
-    borderRadius: 6,
-    alignItems: 'center'
+  timestampText: {
+    fontSize: 12,
+    color: '#757575',
+    marginTop: 5
   },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold'
+  notesText: {
+    fontSize: 13,
+    color: '#E91E63',
+    marginTop: 5,
+    fontStyle: 'italic'
   },
   loadingContainer: {
     flex: 1,

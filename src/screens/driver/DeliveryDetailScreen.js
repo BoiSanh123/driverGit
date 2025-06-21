@@ -158,7 +158,8 @@ const DeliveryDetailScreen = ({ route }) => {
 
       await axios.put(`${API_URL}/orders/${order.OrderID}/status`, {
         newStatus: 'Hoàn thành',
-        proof_image: newPath
+        proof_image: newPath,
+         staffId: StaffID
       });
 
       Alert.alert('Thành công', 'Đã xác nhận giao hàng thành công!');
@@ -202,13 +203,13 @@ const DeliveryDetailScreen = ({ route }) => {
     try {
       await axios.put(`${API_URL}/orders/${order.OrderID}/status`, {
         newStatus: status,
-        notes: notes
+        notes: notes,
+        staffId: StaffID
       });
 
       if (status === 'Thất bại') {
         navigation.navigate('DriverDashboardScreen', {
           StaffID: StaffID,
-          initialTab: 2
         });
       } else {
         navigation.goBack();

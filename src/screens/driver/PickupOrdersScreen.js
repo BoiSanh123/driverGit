@@ -33,25 +33,41 @@ const PickupOrdersScreen = ({ navigation, route }) => {
     try {
       setRefreshing(true);
       setLoading(true);
+      const response = await axios.get(`${API_URL}/driver-all-pickup-orders`, {
+        params: { driverId: StaffID }
+      });
 
-      const warehousesResponse = await axios.get(`${API_URL}/warehouses`);
-      setWarehouses(warehousesResponse.data);
+      const pendingOrders = response.data.filter(
+        order => order.tracking_status === 'Cần lấy'
+      );
+      const completedOrders = response.data.filter(
+        order => order.tracking_status === 'Đã lấy'
+      );
 
-      const [pendingResponse, completedResponse] = await Promise.all([
-        axios.get(`${API_URL}/driver-pickup-orders`, { params: { driverId: StaffID } }),
-        axios.get(`${API_URL}/driver-completed-pickups`, { params: { driverId: StaffID } })
-      ]);
-
-      setPendingOrders(pendingResponse.data);
-      setCompletedOrders(completedResponse.data);
+      setPendingOrders(pendingOrders);
+      setCompletedOrders(completedOrders);
     } catch (error) {
       console.error('Lỗi tải dữ liệu:', error);
-      Alert.alert('Lỗi', 'Không thể tải dữ liệu');
+      Alert.alert('Lỗi', 'Không thể tải danh sách đơn');
     } finally {
       setRefreshing(false);
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const fetchWarehouses = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/warehouses`);
+        setWarehouses(response.data);
+      } catch (error) {
+        console.error('Lỗi tải kho:', error);
+        Alert.alert('Lỗi', 'Không thể tải danh sách kho');
+      }
+    };
+
+    fetchWarehouses();
+  }, []);
 
   const handleTabChange = (tabIndex) => {
     setActiveTab(tabIndex);
@@ -334,28 +350,28 @@ const styles = StyleSheet.create({
     borderColor: '#ddd'
   },
   dropdownToggle: {
-  backgroundColor: '#2196F3',
-  padding: 8,
-  borderRadius: 5,
-  alignItems: 'center',
-  marginBottom: 10
-},
-dropdownText: {
-  color: 'white',
-  fontWeight: 'bold'
-},
-dropdownMenu: {
-  marginTop: 5,
-  borderWidth: 1,
-  borderColor: '#ddd',
-  borderRadius: 5,
-  backgroundColor: '#fff'
-},
-driverOption: {
-  padding: 10,
-  borderBottomWidth: 1,
-  borderBottomColor: '#eee'
-}
+    backgroundColor: '#FFD54F',
+    padding: 8,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 10
+  },
+  dropdownText: {
+    color: 'white',
+    fontWeight: 'bold'
+  },
+  dropdownMenu: {
+    marginTop: 5,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    backgroundColor: '#fff'
+  },
+  driverOption: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee'
+  }
 });
 
 export default PickupOrdersScreen;

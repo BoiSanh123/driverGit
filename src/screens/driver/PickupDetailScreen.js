@@ -35,28 +35,6 @@ const PickupDetailScreen = ({ navigation, route }) => {
   const panY = useRef(new Animated.Value(MIN_HEIGHT)).current;
 
   useEffect(() => {
-    const fetchActivePickup = async () => {
-      if (!order && isFocused) {
-        try {
-          setLoading(true);
-          const response = await axios.get(`${API_URL}/driver-active-pickup`, {
-            params: { driverId: StaffID }
-          });
-          if (response.data) {
-            setOrder(response.data);
-          }
-        } catch (error) {
-          console.error('Error fetching active pickup:', error);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchActivePickup();
-  }, [isFocused]);
-
-  useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -109,9 +87,7 @@ const PickupDetailScreen = ({ navigation, route }) => {
         staffId: StaffID,
         status: 'Đã lấy'
       });
-      navigation.navigate('PickupOrdersScreen', {
-        screen: 'PickupCompleted',
-        params: { StaffID }
+      navigation.navigate('DriverDashboardScreen', {
       });
     } catch (error) {
       Alert.alert('Lỗi', 'Xác nhận thất bại');

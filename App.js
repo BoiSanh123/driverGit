@@ -4,8 +4,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import WarehouseDashboard from './src/screens/warehouse/WarehouseDashboard';
 import WarehouseOrderScreen from './src/screens/warehouse/WarehouseOrderScreen';
-import WarehouseProcessingScreen from './src/screens/warehouse/WarehouseProcessingScreen';
-import WarehouseScreen from './src/screens/warehouse/WarehouseScreen';
 // import WarehouseOrderDetail from './src/screens/warehouse/WarehouseOrderDetail';
 import AssignPickupScreen from './src/screens/warehouse/AssignPickupScreen';
 import DriverAssignmentScreen from './src/screens/warehouse/DriverAssignmentScreen';
@@ -24,11 +22,9 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="DriverDashboardScreen">
+      <Stack.Navigator initialRouteName="WarehouseDashboard">
         <Stack.Screen name="WarehouseDashboard" component={WarehouseDashboard} initialParams={{ StaffID: 21, WarehouseID: 11 }}  options={{ title: 'Trang chủ' }} />
-        <Stack.Screen name="WarehouseOrderScreen" component={WarehouseOrderScreen} initialParams={{ StaffID: 21, WarehouseID: 11 }}  options={{ title: 'Đơn chờ xử lý 1' }} />
-        <Stack.Screen name="WarehouseProcessingScreen" component={WarehouseProcessingScreen} initialParams={{ StaffID: 21, WarehouseID: 11 }}  options={{ title: 'Đơn chờ xử lý 2' }} />
-        <Stack.Screen name="WarehouseScreen" component={WarehouseScreen} initialParams={{ StaffID: 21, WarehouseID: 11 }}  options={{ title: 'Nhà kho' }} />
+        <Stack.Screen name="WarehouseOrderScreen" component={WarehouseOrderScreen} initialParams={{ StaffID: 21, WarehouseID: 11 }}  options={{ title: 'Đơn chờ xử lý' }} />
         <Stack.Screen name="AssignPickupScreen" component={AssignPickupScreen} initialParams={{ StaffID: 21, WarehouseID: 11 }}  options={{ title: 'Phân đơn lấy' }} />        
         <Stack.Screen name="DriverAssignmentScreen" component={DriverAssignmentScreen} initialParams={{ StaffID: 21, WarehouseID: 11 }}  options={{ title: 'Danh sách tài xế' }} />
         <Stack.Screen name="DriverAssignedOrders" component={DriverAssignedOrders} initialParams={{ StaffID: 21, WarehouseID: 11 }}  options={{ title: 'Danh sách đơn phân bố' }} />

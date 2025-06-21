@@ -17,45 +17,63 @@ const OrderHistoryScreen = ({ route }) => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
 
-  const fetchHistoryOrders = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`${API_URL}/drivers/${StaffID}/assigned-orders`);
+const fetchHistoryOrders = async () => {
+  try {
+    setLoading(true);
+    const response = await axios.get(`${API_URL}/drivers/${StaffID}/assigned-orders`);
 
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
 
-      const filtered = response.data.filter(order =>
-        order.Order_status === 'Hoàn thành' || order.Order_status === 'Thất bại'
-      );
+    // Bước 1: Nhóm các bản ghi Tracking theo OrderID, lấy bản ghi mới nhất
+    const ordersMap = response.data.reduce((acc, order) => {
+      const existing = acc[order.OrderID];
+      const currentTimestamp = new Date(order.Timestamp);
+      
+      if (!existing || currentTimestamp > new Date(existing.Timestamp)) {
+        acc[order.OrderID] = order;
+      }
+      return acc;
+    }, {});
 
-      const thisMonth = [];
-      const lastMonth = [];
+    const uniqueOrders = Object.values(ordersMap);
 
-      filtered.forEach(order => {
-        const updated = new Date(order.Updated_at);
-        const m = updated.getMonth();
-        const y = updated.getFullYear();
+    // Bước 2: Lọc các đơn Hoàn thành/Thất bại
+    const filtered = uniqueOrders.filter(order => {
+      return order.Order_status === 'Hoàn thành' || order.Order_status === 'Thất bại';
+    });
 
-        if (m === currentMonth && y === currentYear) {
-          thisMonth.push(order);
-        } else if (
-          (m === currentMonth - 1 && y === currentYear) ||
-          (currentMonth === 0 && m === 11 && y === currentYear - 1)
-        ) {
-          lastMonth.push(order);
-        }
-      });
+    // Bước 3: Phân loại theo tháng
+    const thisMonth = [];
+    const lastMonth = [];
 
-      setThisMonthOrders(thisMonth);
-      setLastMonthOrders(lastMonth);
-    } catch (err) {
-      console.error('❌ Lỗi khi lấy đơn hàng:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    filtered.forEach(order => {
+      const orderDate = new Date(order.Timestamp);
+      const orderMonth = orderDate.getMonth();
+      const orderYear = orderDate.getFullYear();
+
+      // Kiểm tra tháng hiện tại
+      if (orderMonth === currentMonth && orderYear === currentYear) {
+        thisMonth.push(order);
+      } 
+      // Kiểm tra tháng trước (xử lý cả trường hợp năm mới)
+      else if (
+        (orderMonth === currentMonth - 1 && orderYear === currentYear) ||
+        (currentMonth === 0 && orderMonth === 11 && orderYear === currentYear - 1)
+      ) {
+        lastMonth.push(order);
+      }
+    });
+
+    setThisMonthOrders(thisMonth);
+    setLastMonthOrders(lastMonth);
+  } catch (err) {
+    console.error('❌ Lỗi khi lấy đơn hàng:', err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchHistoryOrders();
@@ -142,7 +160,7 @@ const OrderHistoryScreen = ({ route }) => {
         <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
           {currentOrders.length > 0 ? (
             currentOrders
-              .sort((a, b) => new Date(b.assigned_at) - new Date(a.assigned_at))
+              .sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp))
               .map(renderOrderItem)
           ) : (
             <Text style={styles.noOrdersText}>Không có đơn hàng trong mục này</Text>

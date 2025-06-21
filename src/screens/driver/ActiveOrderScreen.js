@@ -13,10 +13,21 @@ const ActiveOrderScreen = ({ route }) => {
   const fetchActiveOrder = async () => {
     try {
       setLoading(true);
-
       const response = await axios.get(`${API_URL}/drivers/${StaffID}/assigned-orders`);
-      const active = response.data.find(order => order.Order_status === 'Đang giao');
-      setActiveOrder(active || null);
+
+      // Lọc tất cả đơn "Đang giao" và lấy đơn mới nhất
+      const activeOrders = response.data.filter(order =>
+        order.Order_status === 'Đang giao'
+      );
+
+      // Nếu có nhiều đơn, lấy đơn có Timestamp mới nhất
+      const latestActiveOrder = activeOrders.length > 0
+        ? activeOrders.reduce((latest, current) =>
+          new Date(current.Timestamp) > new Date(latest.Timestamp) ? current : latest
+        )
+        : null;
+
+      setActiveOrder(latestActiveOrder);
     } catch (error) {
       console.error('Lỗi khi lấy đơn hàng đang giao:', error);
       Alert.alert('Lỗi', 'Không thể lấy thông tin đơn hàng');

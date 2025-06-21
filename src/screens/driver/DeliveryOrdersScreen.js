@@ -9,18 +9,24 @@ const DeliveryOrdersScreen = ({ route }) => {
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState(initialTab);
   const [orders, setOrders] = useState([]);
+  const [rawData, setRawData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/drivers/${StaffID}/assigned-orders`);
-      const rawData = response.data;
+      const allOrders = response.data;
+      setRawData(allOrders);
+
+      const mainOrders = allOrders.filter(order =>
+        order.Order_status === 'Mới tạo' &&
+        order.Tracking_status === 'Đang vận chuyển'
+      );
 
       const uniqueOrders = Object.values(
-        rawData.reduce((acc, item) => {
-          const existing = acc[item.OrderID];
-          if (!existing || new Date(item.assigned_at) > new Date(existing.assigned_at)) {
+        mainOrders.reduce((acc, item) => {
+          if (!acc[item.OrderID] || new Date(item.Timestamp) > new Date(acc[item.OrderID].Timestamp)) {
             acc[item.OrderID] = item;
           }
           return acc;
@@ -42,7 +48,9 @@ const DeliveryOrdersScreen = ({ route }) => {
   const handleStartDelivery = async (order) => {
     try {
       await axios.put(`${API_URL}/orders/${order.id || order.OrderID}/status`, {
-        newStatus: 'Đang giao'
+        newStatus: 'Đang giao',
+        staffId: StaffID,
+        notes: 'Bắt đầu giao hàng'
       });
 
       navigation.navigate('DeliveryDetailScreen', {
@@ -59,40 +67,43 @@ const DeliveryOrdersScreen = ({ route }) => {
         StaffID
       });
     } catch (error) {
+      console.error('Lỗi khi bắt đầu giao hàng:', error);
       Alert.alert('Lỗi', 'Không thể bắt đầu giao hàng');
     }
   };
 
 
   const todayOrders = orders.filter(order => {
-    const assignedDate = new Date(order.assigned_at);
+    const assignedDate = new Date(order.Timestamp);
     const today = new Date();
 
     return (
       assignedDate.getDate() === today.getDate() &&
       assignedDate.getMonth() === today.getMonth() &&
-      assignedDate.getFullYear() === today.getFullYear() &&
-      order.Order_status !== 'Thất bại' &&
-      order.Order_status !== 'Đang giao'
+      assignedDate.getFullYear() === today.getFullYear()
     );
   });
 
   const previousOrders = orders.filter(order => {
-    const assignedDate = new Date(order.assigned_at);
+    const assignedDate = new Date(order.Timestamp);
     const today = new Date();
 
     return (
-      (assignedDate.getDate() !== today.getDate() ||
-        assignedDate.getMonth() !== today.getMonth() ||
-        assignedDate.getFullYear() !== today.getFullYear()) &&
-      order.Order_status !== 'Thất bại' &&
-      order.Order_status !== 'Đang giao'
+      assignedDate.getDate() !== today.getDate() ||
+      assignedDate.getMonth() !== today.getMonth() ||
+      assignedDate.getFullYear() !== today.getFullYear()
     );
   });
 
+  const failedTracking = rawData.filter(order => order.Order_status === 'Thất bại');
 
-  const failedOrders = orders.filter(order =>
-    order.Order_status === 'Thất bại'
+  const failedOrders = Object.values(
+    failedTracking.reduce((acc, item) => {
+      if (!acc[item.OrderID] || new Date(item.Timestamp) > new Date(acc[item.OrderID].Timestamp)) {
+        acc[item.OrderID] = item;
+      }
+      return acc;
+    }, {})
   );
 
   const renderOrderItem = (item, isFailed = false) => (
