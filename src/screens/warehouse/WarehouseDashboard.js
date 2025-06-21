@@ -11,18 +11,12 @@ const data = [
   },
   {
     id: '2',
-    label: 'Trong kho',
-    image: require('../../../assets/img/icons/storage1.png'),
-    screen: 'WarehouseScreen',
-  },
-  {
-    id: '3',
     label: 'Phân phối cho tài xế',
     image: require('../../../assets/img/icons/storageCarrier.png'),
     screen: 'DriverAssignmentScreen',
   },
   {
-    id: '4',
+    id: '3',
     label: 'Lấy đơn về kho',
     image: require('../../../assets/img/icons/storage3.png'),
     screen: 'AssignPickupScreen',
