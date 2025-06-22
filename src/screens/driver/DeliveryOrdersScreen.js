@@ -49,8 +49,7 @@ const DeliveryOrdersScreen = ({ route }) => {
     try {
       await axios.put(`${API_URL}/orders/${order.id || order.OrderID}/status`, {
         newStatus: 'Đang giao',
-        staffId: StaffID,
-        notes: 'Bắt đầu giao hàng'
+        staffId: StaffID
       });
 
       navigation.navigate('DeliveryDetailScreen', {
