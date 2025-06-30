@@ -12,68 +12,58 @@ import API_URL from '../../config/apiconfig';
 
 const OrderHistoryScreen = ({ route }) => {
   const { StaffID } = route.params;
-  const [thisMonthOrders, setThisMonthOrders] = useState([]);
-  const [lastMonthOrders, setLastMonthOrders] = useState([]);
+  const [allOrders, setAllOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(0);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
 
-const fetchHistoryOrders = async () => {
-  try {
-    setLoading(true);
-    const response = await axios.get(`${API_URL}/drivers/${StaffID}/assigned-orders`);
+  const fetchHistoryOrders = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/drivers/${StaffID}/assigned-orders`);
 
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+      const ordersMap = response.data.reduce((acc, order) => {
+        const existing = acc[order.OrderID];
+        const currentTimestamp = new Date(order.Timestamp);
+        
+        if (!existing || currentTimestamp > new Date(existing.Timestamp)) {
+          acc[order.OrderID] = order;
+        }
+        return acc;
+      }, {});
 
-    const ordersMap = response.data.reduce((acc, order) => {
-      const existing = acc[order.OrderID];
-      const currentTimestamp = new Date(order.Timestamp);
-      
-      if (!existing || currentTimestamp > new Date(existing.Timestamp)) {
-        acc[order.OrderID] = order;
-      }
-      return acc;
-    }, {});
+      const uniqueOrders = Object.values(ordersMap).filter(order => {
+        return order.Order_status === 'Hoàn thành' || order.Order_status === 'Thất bại';
+      });
 
-    const uniqueOrders = Object.values(ordersMap);
+      setAllOrders(uniqueOrders);
+      filterOrdersByMonth(uniqueOrders, new Date().getMonth());
+    } catch (err) {
+      console.error('Lỗi khi lấy đơn hàng:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const filtered = uniqueOrders.filter(order => {
-      return order.Order_status === 'Hoàn thành' || order.Order_status === 'Thất bại';
-    });
-
-    const thisMonth = [];
-    const lastMonth = [];
-
-    filtered.forEach(order => {
+  const filterOrdersByMonth = (orders, month) => {
+    const currentYear = new Date().getFullYear();
+    const filtered = orders.filter(order => {
       const orderDate = new Date(order.Timestamp);
-      const orderMonth = orderDate.getMonth();
-      const orderYear = orderDate.getFullYear();
-
-      if (orderMonth === currentMonth && orderYear === currentYear) {
-        thisMonth.push(order);
-      } 
-
-      else if (
-        (orderMonth === currentMonth - 1 && orderYear === currentYear) ||
-        (currentMonth === 0 && orderMonth === 11 && orderYear === currentYear - 1)
-      ) {
-        lastMonth.push(order);
-      }
+      return orderDate.getMonth() === month && orderDate.getFullYear() === currentYear;
     });
-
-    setThisMonthOrders(thisMonth);
-    setLastMonthOrders(lastMonth);
-  } catch (err) {
-    console.error('Lỗi khi lấy đơn hàng:', err);
-  } finally {
-    setLoading(false);
-  }
-};
+    setFilteredOrders(filtered);
+  };
 
   useEffect(() => {
     fetchHistoryOrders();
   }, []);
+
+  const handleMonthSelect = (month) => {
+    setSelectedMonth(month);
+    filterOrdersByMonth(allOrders, month);
+    setShowMonthDropdown(false);
+  };
 
   const renderOrderItem = (order, index) => (
     <View
@@ -92,7 +82,7 @@ const fetchHistoryOrders = async () => {
         order.Order_status === 'Thất bại' ? { color: '#E53935' } : { color: '#4CAF50' }
       ]}>
         Trạng thái: {order.Order_status}
-        {order.Order_status === 'Thất bại' && order.notes && ` (${order.notes})`}
+        {order.Order_status === 'Thất bại' && order.Tracking_notes && ` (${order.Tracking_notes})`}
       </Text>
     </View>
   );
@@ -108,31 +98,42 @@ const fetchHistoryOrders = async () => {
   const monthName = (monthNumber) => {
     const date = new Date();
     date.setMonth(monthNumber);
-    return `Tháng ${monthNumber + 1}`;
+    return date.toLocaleString('vi-VN', { month: 'long' });
   };
 
-  const currentOrders = activeTab === 0 ? thisMonthOrders : lastMonthOrders;
-  const { completed, failed } = getStats(currentOrders);
-  const currentMonthIndex = new Date().getMonth();
-  const lastMonthIndex = currentMonthIndex === 0 ? 11 : currentMonthIndex - 1;
+  const { completed, failed } = getStats(filteredOrders);
+  const months = Array.from({ length: 12 }, (_, i) => i);
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>LỊCH SỬ GIAO HÀNG</Text>
 
-      <View style={styles.tabContainer}>
+      <View style={styles.monthSelectorContainer}>
         <TouchableOpacity
-          style={[styles.tabButton, activeTab === 0 && styles.activeTab]}
-          onPress={() => setActiveTab(0)}
+          style={styles.monthSelector}
+          onPress={() => setShowMonthDropdown(!showMonthDropdown)}
         >
-          <Text style={styles.tabText}>{monthName(currentMonthIndex)}</Text>
+          <Text style={styles.monthSelectorText}>
+            {monthName(selectedMonth).charAt(0).toUpperCase() + monthName(selectedMonth).slice(1)}
+          </Text>
+          <Text style={styles.monthSelectorIcon}>{showMonthDropdown ? '▲' : '▼'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 1 && styles.activeTab]}
-          onPress={() => setActiveTab(1)}
-        >
-          <Text style={styles.tabText}>{monthName(lastMonthIndex)}</Text>
-        </TouchableOpacity>
+
+        {showMonthDropdown && (
+          <View style={styles.dropdownMenu}>
+            <ScrollView>
+              {months.map(month => (
+                <TouchableOpacity
+                  key={month}
+                  style={styles.monthOption}
+                  onPress={() => handleMonthSelect(month)}
+                >
+                  <Text>{monthName(month)}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
 
       <View style={styles.summaryContainer}>
@@ -154,12 +155,12 @@ const fetchHistoryOrders = async () => {
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: 30 }}>
-          {currentOrders.length > 0 ? (
-            currentOrders
+          {filteredOrders.length > 0 ? (
+            filteredOrders
               .sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp))
               .map(renderOrderItem)
           ) : (
-            <Text style={styles.noOrdersText}>Không có đơn hàng trong mục này</Text>
+            <Text style={styles.noOrdersText}>Không có đơn hàng trong tháng này</Text>
           )}
         </ScrollView>
       )}
@@ -176,26 +177,40 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     textAlign: 'center'
   },
-  tabContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  monthSelectorContainer: {
     marginBottom: 15,
-    borderBottomWidth: 1,
-    borderColor: '#ccc'
+    zIndex: 10
   },
-  tabButton: {
-    padding: 10,
-    marginHorizontal: 15,
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent'
+  monthSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd'
   },
-  activeTab: {
-    borderBottomColor: '#FFD54F'
-  },
-  tabText: {
-    fontWeight: 'bold',
-    fontSize: 14,
+  monthSelectorText: {
+    fontSize: 16,
     color: '#444'
+  },
+  monthSelectorIcon: {
+    fontSize: 12,
+    color: '#777'
+  },
+  dropdownMenu: {
+    maxHeight: 200,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginTop: 5
+  },
+  monthOption: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee'
   },
   loadingContainer: {
     flex: 1,

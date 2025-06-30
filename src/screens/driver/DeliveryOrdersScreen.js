@@ -94,16 +94,33 @@ const DeliveryOrdersScreen = ({ route }) => {
     );
   });
 
-  const failedTracking = rawData.filter(order => order.Order_status === 'Thất bại');
+const failedOrders = Object.values(
+  rawData
+    .filter(item => item.Order_status === 'Thất bại')
+    .reduce((acc, item) => {
+      const allOrderRecords = rawData.filter(x => x.OrderID === item.OrderID);
 
-  const failedOrders = Object.values(
-    failedTracking.reduce((acc, item) => {
-      if (!acc[item.OrderID] || new Date(item.Timestamp) > new Date(acc[item.OrderID].Timestamp)) {
-        acc[item.OrderID] = item;
+      const latestWithNotes = [...allOrderRecords]
+        .sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp))
+        .find(x => x.Tracking_notes) || item;
+
+      if (!acc[item.OrderID] || new Date(latestWithNotes.Timestamp) > new Date(acc[item.OrderID].Timestamp)) {
+        acc[item.OrderID] = {
+          ...latestWithNotes,
+          Tracking_notes: latestWithNotes.Tracking_notes || 'Không có thông tin'
+        };
       }
       return acc;
     }, {})
-  );
+);
+
+console.log('All records for order 15:', 
+  rawData.filter(x => x.OrderID === 15).map(x => ({
+    time: x.Timestamp,
+    notes: x.Tracking_notes,
+    status: x.Tracking_status
+  }))
+);
 
   const renderOrderItem = (item, isFailed = false) => (
     <View style={[styles.orderCard, isFailed && styles.failedOrderCard]}>
@@ -113,7 +130,7 @@ const DeliveryOrdersScreen = ({ route }) => {
       <Text style={styles.receiverInfo}>📦 Dịch vụ: {item.Service_name}</Text>
       <Text style={styles.receiverInfo}>🏭 Kho xuất phát: {item.Warehouse_name || 'Không xác định'}</Text>
       {isFailed && (
-        <Text style={styles.returnReason}>❗ Lý do: {Math.random() < 0.5 ? 'Không gặp khách' : 'Khách từ chối nhận'}</Text>
+        <Text style={styles.returnReason}>❗ Lý do: {item.Tracking_notes || 'Không có thông tin'}</Text>
       )}
 
       <View style={styles.assignButtonWrapper}>

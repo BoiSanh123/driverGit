@@ -9,7 +9,8 @@ import {
   Animated,
   Dimensions,
   ScrollView,
-  Linking
+  Linking,
+  Modal
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -26,7 +27,7 @@ const MAX_HEIGHT = height * 0.8;
 const DeliveryDetailScreen = ({ route }) => {
   const { order, StaffID } = route.params;
   const navigation = useNavigation();
-
+  const [showFailureReasons, setShowFailureReasons] = useState(false);
   const cameraRef = useRef(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [hasCameraPermission, setHasCameraPermission] = useState(null);
@@ -113,13 +114,13 @@ const DeliveryDetailScreen = ({ route }) => {
 
   const handleTakePicture = async () => {
     if (!cameraRef.current) return;
-    
+
     try {
       const photo = await cameraRef.current.takePictureAsync({
         quality: 0.8,
         skipProcessing: true,
       });
-      
+
       setIsCameraVisible(false);
       showConfirmationDialog(photo.uri);
     } catch (error) {
@@ -136,7 +137,7 @@ const DeliveryDetailScreen = ({ route }) => {
         {
           text: 'Hủy',
           style: 'cancel',
-          onPress: () => {}
+          onPress: () => { }
         },
         {
           text: 'Xác nhận',
@@ -159,7 +160,7 @@ const DeliveryDetailScreen = ({ route }) => {
       await axios.put(`${API_URL}/orders/${order.OrderID}/status`, {
         newStatus: 'Hoàn thành',
         proof_image: newPath,
-         staffId: StaffID
+        staffId: StaffID
       });
 
       Alert.alert('Thành công', 'Đã xác nhận giao hàng thành công!');
@@ -178,25 +179,14 @@ const DeliveryDetailScreen = ({ route }) => {
     setIsCameraVisible(true);
   };
 
+  const failureReasons = [
+    "Không gặp khách",
+    "Khách từ chối nhận",
+    "Địa chỉ không chính xác"
+  ];
+
   const handleDeliveryFailure = () => {
-    Alert.alert(
-      'Giao hàng thất bại',
-      'Vui lòng chọn lý do',
-      [
-        {
-          text: 'Không gặp khách',
-          onPress: () => updateStatus('Thất bại', 'Không gặp khách')
-        },
-        {
-          text: 'Khách từ chối nhận',
-          onPress: () => updateStatus('Thất bại', 'Khách từ chối nhận')
-        },
-        {
-          text: 'Hủy',
-          style: 'cancel'
-        }
-      ]
-    );
+    setShowFailureReasons(true);
   };
 
   const updateStatus = async (status, notes) => {
@@ -219,94 +209,126 @@ const DeliveryDetailScreen = ({ route }) => {
     }
   };
 
-  return (
-    <View style={styles.container}>
-      {isCameraVisible && (
-        <View style={styles.cameraContainer}>
-          <CameraView
-            ref={cameraRef}
-            style={StyleSheet.absoluteFill}
-            facing="back"
+return (
+  <View style={styles.container}>
+    {isCameraVisible && (
+      <View style={styles.cameraContainer}>
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          facing="back"
+        />
+        <TouchableOpacity
+          style={styles.captureButton}
+          onPress={handleTakePicture}
+        >
+          <Text style={styles.captureText}>📸</Text>
+        </TouchableOpacity>
+      </View>
+    )}
+
+    <Animated.View
+      style={[styles.mapContainer, { height: Animated.subtract(height, panY) }]}
+    >
+      <MapView
+        style={styles.map}
+        region={region}
+        showsUserLocation={true}
+        followsUserLocation={true}
+      >
+        {currentLocation && (
+          <Marker
+            coordinate={{
+              latitude: currentLocation.latitude,
+              longitude: currentLocation.longitude
+            }}
+            title="Vị trí của bạn"
           />
+        )}
+      </MapView>
+      <TouchableOpacity
+        style={[styles.homeButton, styles.homeButtonContainer]}
+        onPress={() => navigation.navigate('DriverDashboardScreen', { StaffID })}
+      >
+        <Text style={styles.homeButtonText}>🏠 Về trang chủ</Text>
+      </TouchableOpacity>
+    </Animated.View>
+
+    <Animated.View
+      style={[styles.infoPanel, { height: panY }]}
+      {...panResponder.panHandlers}
+    >
+      <View style={styles.dragHandle} />
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
+        <Text style={styles.header}>
+          ĐANG GIAO: Đơn hàng #{order.Order_code || order.order_code}
+        </Text>
+
+        <View style={styles.infoContainer}>
+          <Text style={styles.infoText}>👤 Người nhận: {order.receiver_name}</Text>
+          <Text style={styles.infoText}>📍 Địa chỉ: {order.receiver_address}</Text>
+          <Text style={styles.infoText}>📞 Điện thoại: {order.receiver_phone}</Text>
+          <Text style={styles.infoText}>⚖️ Cân nặng: {order.Weight} kg</Text>
+          <Text style={styles.infoText}>📦 Dịch vụ: {order.Service_name}</Text>
+          <Text style={styles.infoText}>
+            💰 Tổng tiền: {parseFloat(order.Ship_cost).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} VND
+          </Text>
+        </View>
+
+        <View style={styles.buttonGroup}>
           <TouchableOpacity
-            style={styles.captureButton}
-            onPress={handleTakePicture}
+            style={[styles.button, styles.successButton]}
+            onPress={handleDeliverySuccess}
+            disabled={isCameraVisible}
           >
-            <Text style={styles.captureText}>📸</Text>
+            <Text style={styles.buttonText}>✔️ GIAO HÀNG THÀNH CÔNG</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.button, styles.failureButton]}
+            onPress={handleDeliveryFailure}
+            disabled={isCameraVisible}
+          >
+            <Text style={styles.buttonText}>✖️ GIAO HÀNG THẤT BẠI</Text>
           </TouchableOpacity>
         </View>
-      )}
+      </ScrollView>
+    </Animated.View>
 
-      <Animated.View
-        style={[styles.mapContainer, { height: Animated.subtract(height, panY) }]}
-      >
-        <MapView
-          style={styles.map}
-          region={region}
-          showsUserLocation={true}
-          followsUserLocation={true}
-        >
-          {currentLocation && (
-            <Marker
-              coordinate={{
-                latitude: currentLocation.latitude,
-                longitude: currentLocation.longitude
+    <Modal
+      visible={showFailureReasons}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setShowFailureReasons(false)}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Chọn lý do thất bại</Text>
+          
+          {failureReasons.map((reason, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.reasonButton}
+              onPress={() => {
+                updateStatus('Thất bại', reason);
+                setShowFailureReasons(false);
               }}
-              title="Vị trí của bạn"
-            />
-          )}
-        </MapView>
-        <TouchableOpacity
-          style={[styles.homeButton, styles.homeButtonContainer]}
-          onPress={() => navigation.navigate('DriverDashboardScreen', { StaffID })}
-        >
-          <Text style={styles.homeButtonText}>🏠 Về trang chủ</Text>
-        </TouchableOpacity>
-      </Animated.View>
-
-
-      <Animated.View
-        style={[styles.infoPanel, { height: panY }]}
-        {...panResponder.panHandlers}
-      >
-        <View style={styles.dragHandle} />
-
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
-          <Text style={styles.header}>
-            ĐANG GIAO: Đơn hàng #{order.Order_code || order.order_code}
-          </Text>
-
-          <View style={styles.infoContainer}>
-            <Text style={styles.infoText}>👤 Người nhận: {order.receiver_name}</Text>
-            <Text style={styles.infoText}>📍 Địa chỉ: {order.receiver_address}</Text>
-            <Text style={styles.infoText}>📞 Điện thoại: {order.receiver_phone}</Text>
-            <Text style={styles.infoText}>⚖️ Cân nặng: {order.Weight} kg</Text>
-            <Text style={styles.infoText}>📦 Dịch vụ: {order.Service_name}</Text>
-            <Text style={styles.infoText}>
-              💰 Tổng tiền: {parseFloat(order.Ship_cost).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} VND
-            </Text>
-          </View>
-
-          <View style={styles.buttonGroup}>
-            <TouchableOpacity
-              style={[styles.button, styles.successButton]}
-              onPress={handleDeliverySuccess}
-              disabled={isCameraVisible}
             >
-              <Text style={styles.buttonText}>✔️ GIAO HÀNG THÀNH CÔNG</Text>
+              <Text style={styles.reasonText}>{reason}</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.failureButton]}
-              onPress={handleDeliveryFailure}
-              disabled={isCameraVisible}
-            >
-              <Text style={styles.buttonText}>✖️ GIAO HÀNG THẤT BẠI</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </Animated.View>
-    </View>
-  );
+          ))}
+
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => setShowFailureReasons(false)}
+          >
+            <Text style={styles.cancelText}>Hủy</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  </View>
+);
 };
 
 const styles = StyleSheet.create({
@@ -319,7 +341,7 @@ const styles = StyleSheet.create({
     padding: 15,
     margin: 15,
     borderRadius: 8,
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: '#FFD54F'
   },
   infoText: { fontSize: 16, marginBottom: 10, color: '#555' },
@@ -387,6 +409,43 @@ const styles = StyleSheet.create({
   captureText: {
     fontSize: 30,
   },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)'
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center'
+  },
+  reasonButton: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee'
+  },
+  reasonText: {
+    fontSize: 16
+  },
+  cancelButton: {
+    marginTop: 15,
+    padding: 10,
+    backgroundColor: '#e74c3c',
+    borderRadius: 5,
+    alignItems: 'center'
+  },
+  cancelText: {
+    color: 'white',
+    fontWeight: 'bold'
+  }
 });
 
 export default DeliveryDetailScreen;

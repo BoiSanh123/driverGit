@@ -22,7 +22,7 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="DriverDashboardScreen">
+      <Stack.Navigator initialRouteName="WarehouseDashboard">
         <Stack.Screen name="WarehouseDashboard" component={WarehouseDashboard} initialParams={{ StaffID: 21, WarehouseID: 11 }}  options={{ title: 'Trang chủ' }} />
         <Stack.Screen name="WarehouseOrderScreen" component={WarehouseOrderScreen} initialParams={{ StaffID: 21, WarehouseID: 11 }}  options={{ title: 'Đơn chờ xử lý' }} />
         <Stack.Screen name="AssignPickupScreen" component={AssignPickupScreen} initialParams={{ StaffID: 21, WarehouseID: 11 }}  options={{ title: 'Phân đơn lấy' }} />        
@@ -35,13 +35,9 @@ export default function App() {
         <Stack.Screen name="ActiveOrderScreen" component={ActiveOrderScreen} options={{ title: 'Đơn hàng đang giao' }} />
         <Stack.Screen name="OrderHistoryScreen" component={OrderHistoryScreen} options={{ title: 'Lịch sử đơn' }} />
         <Stack.Screen name="PickupOrdersScreen" component={PickupOrdersScreen} options={{ title: 'Đơn cần lấy' }} />
-        <Stack.Screen name="ActivePickupScreen" component={ActivePickupScreen} options={{ title: 'Đơn cần lấy' }} />
+        <Stack.Screen name="ActivePickupScreen" component={ActivePickupScreen} options={{ title: 'Đơn đang lấy' }} />
         <Stack.Screen name="PickupDetailScreen" component={PickupDetailScreen} options={{ title: 'Đơn hàng đang lấy' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
-
-/*
-
-*/

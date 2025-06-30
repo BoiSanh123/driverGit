@@ -9,7 +9,8 @@ import {
   Animated,
   Dimensions,
   ScrollView,
-  ActivityIndicator
+  ActivityIndicator,
+  Modal
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -31,8 +32,15 @@ const PickupDetailScreen = ({ navigation, route }) => {
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
+  const [showFailureReasons, setShowFailureReasons] = useState(false);
   const isFocused = useIsFocused();
   const panY = useRef(new Animated.Value(MIN_HEIGHT)).current;
+
+  const failureReasons = [
+    "Khách hàng hủy đơn",
+    "Không liên lạc được",
+    "Địa chỉ không chính xác"
+  ];
 
   useEffect(() => {
     (async () => {
@@ -87,19 +95,24 @@ const PickupDetailScreen = ({ navigation, route }) => {
         staffId: StaffID,
         status: 'Đã lấy'
       });
-      navigation.navigate('DriverDashboardScreen', {
-      });
+      navigation.navigate('DriverDashboardScreen');
     } catch (error) {
       Alert.alert('Lỗi', 'Xác nhận thất bại');
     }
   };
 
-  const handleFailure = async () => {
+  const showFailureOptions = () => {
+    setShowFailureReasons(true);
+  };
+
+  const handleFailure = async (reason) => {
+    setShowFailureReasons(false);
     try {
       await axios.post(`${API_URL}/update-tracking`, {
         orderId: order.OrderID,
         staffId: StaffID,
-        status: 'Cần lấy'
+        status: 'Lấy thất bại',
+        notes: reason
       });
       navigation.navigate('DriverDashboardScreen');
     } catch (error) {
@@ -192,13 +205,43 @@ const PickupDetailScreen = ({ navigation, route }) => {
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.failureButton]}
-              onPress={handleFailure}
+              onPress={showFailureOptions}
             >
               <Text style={styles.buttonText}>Lấy đơn thất bại</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </Animated.View>
+
+      <Modal
+        visible={showFailureReasons}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowFailureReasons(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Chọn lý do thất bại</Text>
+            
+            {failureReasons.map((reason, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.reasonButton}
+                onPress={() => handleFailure(reason)}
+              >
+                <Text style={styles.reasonText}>{reason}</Text>
+              </TouchableOpacity>
+            ))}
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setShowFailureReasons(false)}
+            >
+              <Text style={styles.cancelText}>Hủy</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -285,6 +328,43 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginHorizontal: 20,
     alignItems: 'center'
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)'
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center'
+  },
+  reasonButton: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee'
+  },
+  reasonText: {
+    fontSize: 16
+  },
+  cancelButton: {
+    marginTop: 15,
+    padding: 10,
+    backgroundColor: '#e74c3c',
+    borderRadius: 5,
+    alignItems: 'center'
+  },
+  cancelText: {
+    color: 'white',
+    fontWeight: 'bold'
   }
 });
 

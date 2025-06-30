@@ -20,6 +20,7 @@ const PickupOrdersScreen = ({ navigation, route }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [pendingOrders, setPendingOrders] = useState([]);
   const [completedOrders, setCompletedOrders] = useState([]);
+  const [failedOrders, setFailedOrders] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [warehouses, setWarehouses] = useState([]);
@@ -42,9 +43,16 @@ const PickupOrdersScreen = ({ navigation, route }) => {
       const completedOrders = response.data.filter(
         order => order.tracking_status === 'Đã lấy'
       );
+      const failedOrders = response.data.filter(
+        order => order.tracking_status === 'Lấy thất bại'
+      ).map(order => ({
+        ...order,
+        Notes: order.tracking_notes
+      }));
 
       setPendingOrders(pendingOrders);
       setCompletedOrders(completedOrders);
+      setFailedOrders(failedOrders);
     } catch (error) {
       console.error('Lỗi tải dữ liệu:', error);
       Alert.alert('Lỗi', 'Không thể tải danh sách đơn');
@@ -124,20 +132,41 @@ const PickupOrdersScreen = ({ navigation, route }) => {
     fetchAllData();
   }, []);
 
-  const renderOrderItem = (item, isCompleted = false) => (
-    <View style={[styles.orderCard, isCompleted && styles.completedOrderCard]}>
+  const renderOrderItem = (item, isCompleted = false, isFailed = false) => (
+    <View style={[
+      styles.orderCard,
+      isCompleted && styles.completedOrderCard,
+      isFailed && styles.failedOrderCard
+    ]}>
       <Text style={styles.orderCode}>Đơn hàng #{item.Order_code || item.order_code}</Text>
       <Text style={styles.senderInfo}>👤 Người gửi: {item.Sender_name}</Text>
       <Text style={styles.senderInfo}>📍 Địa chỉ: {item.Sender_address}</Text>
       <Text style={styles.senderInfo}>📦 Dịch vụ: {item.Service_name}</Text>
+      {isFailed && (
+        <Text style={styles.failureReason}>
+          ❗ Lý do: {item.tracking_notes || item.Notes || 'Không có thông tin'}
+        </Text>
+      )}
 
       <View style={styles.assignButtonWrapper}>
         <TouchableOpacity
-          onPress={() => isCompleted ? handleDeliverToWarehouse(item.OrderID) : handleStartPickup(item)}
-          style={isCompleted ? styles.buttonDeliver : styles.buttonStart}
+          onPress={() => {
+            if (isCompleted) {
+              handleDeliverToWarehouse(item.OrderID);
+            } else if (isFailed) {
+              handleStartPickup(item);
+            } else {
+              handleStartPickup(item);
+            }
+          }}
+          style={[
+            isCompleted ? styles.buttonDeliver :
+              isFailed ? styles.buttonRetry : styles.buttonStart
+          ]}
         >
           <Text style={styles.assignButtonText}>
-            {isCompleted ? 'GIAO CHO KHO' : 'BẮT ĐẦU LẤY'}
+            {isCompleted ? 'GIAO CHO KHO' :
+              isFailed ? 'LẤY LẠI' : 'BẮT ĐẦU LẤY'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -167,6 +196,13 @@ const PickupOrdersScreen = ({ navigation, route }) => {
         >
           <Text style={styles.tabText}>ĐÃ LẤY ({completedOrders.length})</Text>
         </TouchableOpacity>
+        {/* Thêm tab THẤT BẠI */}
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 2 && styles.activeTab]}
+          onPress={() => handleTabChange(2)}
+        >
+          <Text style={styles.tabText}>THẤT BẠI ({failedOrders.length})</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -188,7 +224,7 @@ const PickupOrdersScreen = ({ navigation, route }) => {
               <Text style={styles.emptyText}>Không có đơn nào cần lấy</Text>
             )}
           </>
-        ) : (
+        ) : activeTab === 1 ? (
           <>
             <View style={styles.warehouseSelector}>
               <TouchableOpacity
@@ -231,6 +267,19 @@ const PickupOrdersScreen = ({ navigation, route }) => {
               ))
             ) : (
               <Text style={styles.emptyText}>Chưa có đơn nào đã lấy</Text>
+            )}
+          </>
+        ) : (
+          <>
+            <Text style={styles.tabHeader}>ĐƠN LẤY THẤT BẠI ({failedOrders.length})</Text>
+            {failedOrders.length > 0 ? (
+              failedOrders.map((item, index) => (
+                <View key={index}>
+                  {renderOrderItem(item, false, true)}
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyText}>Không có đơn nào lấy thất bại</Text>
             )}
           </>
         )}
@@ -370,6 +419,20 @@ const styles = StyleSheet.create({
     padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#eee'
+  },
+  failedOrderCard: {
+    borderColor: '#e74c3c'
+  },
+  buttonRetry: {
+    backgroundColor: '#e74c3c',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  failureReason: {
+    color: '#e74c3c',
+    fontStyle: 'italic',
+    marginVertical: 5
   }
 });
 

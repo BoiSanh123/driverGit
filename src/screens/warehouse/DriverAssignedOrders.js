@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import axios from 'axios';
-import { useNavigation, useRoute } from '@react-navigation/native';
 import API_URL from '../../config/apiconfig';
-
+import { useRoute } from '@react-navigation/native';
 const DriverAssignedOrders = () => {
   const { StaffID } = useRoute().params;
-  const navigation = useNavigation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,7 +23,7 @@ const DriverAssignedOrders = () => {
 
       const filteredOrders = latestTrackingOrders.filter(order => 
         order.Order_status === 'Mới tạo' && 
-        ['Cần lấy', 'Đang lấy', 'Đã lấy', 'Đang vận chuyển'].includes(order.Tracking_status)
+        ['Cần lấy', 'Đang lấy', 'Đã lấy', 'Lấy thất bại','Đang vận chuyển'].includes(order.Tracking_status)
       );
       
       setOrders(filteredOrders);
@@ -40,44 +38,38 @@ const DriverAssignedOrders = () => {
     fetchOrders();
   }, []);
 
-  const handleOrderPress = (order) => {
-    navigation.navigate('OrderDetail', { order });
-  };
-
   const getStatusColor = (status) => {
     switch(status) {
       case 'Cần lấy': return '#FFA000';
       case 'Đang lấy': return '#2196F3';
       case 'Đã lấy': return '#4CAF50';
       case 'Đang vận chuyển': return '#673AB7';
+      case 'Lấy thất bại': return '#2196F3';
       default: return '#9E9E9E';
     }
   };
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.orderCard}
-      onPress={() => handleOrderPress(item)}
-    >
-      <View style={styles.orderHeader}>
-        <Text style={styles.orderCode}>#{item.Order_code}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.Tracking_status) }]}>
-          <Text style={styles.statusText}>{item.Tracking_status}</Text>
-        </View>
+const renderItem = ({ item }) => (
+  <View style={styles.orderCard}>
+    <View style={styles.orderHeader}>
+      <Text style={styles.orderCode}>#{item.Order_code}</Text>
+      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.Tracking_status) }]}>
+        <Text style={styles.statusText}>{item.Tracking_status}</Text>
       </View>
-      
-      <Text style={styles.receiverInfo}>👤 Người nhận: {item.Receiver_name}</Text>
-      <Text style={styles.receiverInfo}>📞 SĐT: {item.Receiver_phone}</Text>
-      <Text style={styles.receiverInfo}>📍Nơi nhận: {item.Receiver_address}</Text>
-      <Text style={styles.receiverInfo}>📦 {item.Service_name} - {item.Weight}kg</Text>
-      <Text style={styles.receiverInfo}>🏭 Từ Kho: {item.Warehouse_name}</Text>
-      <Text style={styles.timestampText}>🕒 {new Date(item.Timestamp).toLocaleString()}</Text>
-      
-      {item.Tracking_notes && (
-        <Text style={styles.notesText}>📝 Ghi chú: {item.Tracking_notes}</Text>
-      )}
-    </TouchableOpacity>
-  );
+    </View>
+    
+    <Text style={styles.receiverInfo}>👤 Người nhận: {item.Receiver_name}</Text>
+    <Text style={styles.receiverInfo}>📞 SĐT: {item.Receiver_phone}</Text>
+    <Text style={styles.receiverInfo}>📍Nơi nhận: {item.Receiver_address}</Text>
+    <Text style={styles.receiverInfo}>📦 {item.Service_name} - {item.Weight}kg</Text>
+    <Text style={styles.receiverInfo}>🏭 Từ Kho: {item.Warehouse_name}</Text>
+    <Text style={styles.timestampText}>🕒 {new Date(item.Timestamp).toLocaleString()}</Text>
+    
+    {item.Tracking_notes && (
+      <Text style={styles.notesText}>📝 Ghi chú: {item.Tracking_notes}</Text>
+    )}
+  </View>
+);
 
   if (loading) {
     return (
